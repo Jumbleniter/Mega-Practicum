@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Student Logs</title>
+
+  <!-- Bootstrap CSS (CDN with Local Fallback) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" onerror="this.onerror=null; this.href='bootstrap.min.css';">
+
+  <!-- Custom CSS -->
+  <style>
+    :root {
+      --primary-color: #0056b3;
+      --secondary-color: #ffffff;
+      --accent-color: #e31837;
+      --text-color: #333333;
+      --background-color: #ffffff;
+      --button-color: #0056b3;
+      --button-text-color: #ffffff;
+      --header-color: #0056b3;
+      --header-text-color: #ffffff;
+    }
+
+    body {
+      background-color: var(--background-color);
+      color: var(--text-color);
+    }
+
+    .btn-primary {
+      background-color: var(--button-color);
+      border-color: var(--button-color);
+      color: var(--button-text-color);
+    }
+
+    .btn-outline-primary {
+      color: var(--button-color);
+      border-color: var(--button-color);
+    }
+
+    .btn-outline-primary:hover {
+      background-color: var(--button-color);
+      color: var(--button-text-color);
+    }
+
+    .card-header {
+      background-color: var(--header-color);
+      color: var(--header-text-color);
+    }
+
+    .institution-name {
+      color: var(--primary-color);
+      font-weight: bold;
+    }
+  </style>
+
+  <!-- jQuery (CDN with Local Fallback) -->
+  <script src="https://code.jquery.com/jquery-3.6.4.min.js" onerror="this.onerror=null; this.src='jquery.min.js';"></script>
+
+  <!-- Bootstrap JS (CDN with Local Fallback) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" onerror="this.onerror=null; this.src='bootstrap.bundle.min.js';"></script>
+</head>
+<body class="bg-light">
+  <noscript>
+    <div class="alert alert-danger m-3">
+      <strong>JavaScript is required!</strong> This application requires JavaScript to be enabled in your browser to function properly.
+    </div>
+  </noscript>
+
+  <div class="container mt-5">
+    <!-- Login Form -->
+    <div id="loginForm" class="row justify-content-center">
+      <div class="col-md-6">
+        <div class="card shadow">
+          <div class="card-body">
+            <h2 class="text-center mb-4">Login</h2>
+            <form id="loginFormElement">
+              <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" required>
+              </div>
+              <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" required>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">Login</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Application (Hidden by default) -->
+    <div id="mainApp" style="display: none;">
+      <h1 class="text-center">Student Logs</h1>
+
+      <!-- Add New Course Form -->
+      <form id="newCourseForm" class="p-4 bg-white shadow rounded mb-4">
+        <h3 class="mb-3">Add New Course</h3>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="courseDisplay" class="form-label">Course Display Name</label>
+            <input type="text" class="form-control" id="courseDisplay" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label for="courseId" class="form-label">Course ID (UUID)</label>
+            <input type="text" class="form-control" id="courseId" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Course</button>
+      </form>
+
+      <!-- Course Selection and Log Entry -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card shadow mb-4">
+            <div class="card-body">
+              <h3 class="card-title">Select Course</h3>
+              <select id="course" class="form-select mb-3">
+                <option selected value="">Choose Course</option>
+              </select>
+              <input type="text" id="uvuId" class="form-control" placeholder="Enter UVU ID" disabled>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card shadow mb-4">
+            <div class="card-body">
+              <h3 class="card-title">Add Log Entry</h3>
+              <textarea id="logText" class="form-control mb-3" rows="3" placeholder="Enter log text"></textarea>
+              <button id="addLogBtn" class="btn btn-primary" disabled>Add Log</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Log Display -->
+      <div class="card shadow mt-4">
+        <div class="card-body">
+          <h3 class="card-title">Log Entries</h3>
+          <div id="uvuIdDisplay" class="mb-3"></div>
+          <ul id="logList" class="list-group"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
+<!-- DONE: 
+  - Set lang attribute to American English ("en").
+  - Set charset to UTF-8.
+  - Used Stack Overflow's favicon.
+  - Loaded an external CSS file.
+  - Course options will be fetched dynamically via AJAX.
+  - UVU ID input is disabled until a course is selected.
+  - UVU ID field has max length of 8 characters, only allows digits.
+  - When 8 valid digits are entered, an AJAX request will fetch logs.
+  - If a valid response (200/304) is received, logs are displayed.
+  - Clicking on a log toggles visibility of the text (excluding date).
+  - "New Log" textarea and submit button are disabled until logs are displayed.
+  - "Add Log" button will send a PUT request via AJAX to store logs.
+  - Loaded an external JS file.
+-->
