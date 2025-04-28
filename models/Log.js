@@ -1,30 +1,50 @@
 const mongoose = require('mongoose');
 
 const logSchema = new mongoose.Schema({
-    uvuId: {
+    studentId: {
         type: String,
-        required: true,
-        validate: {
-            validator: function(v) {
-                return /^\d{8}$/.test(v);
-            },
-            message: props => `${props.value} is not a valid UVU ID! Must be 8 digits.`
-        }
+        required: true
     },
     courseId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course',
+        required: true
+    },
+    content: {
         type: String,
         required: true
     },
-    text: {
+    tenant: {
         type: String,
+        required: true,
+        enum: ['uvu', 'uofu']
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true
     },
-    date: {
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    updatedAt: {
         type: Date,
         default: Date.now
     }
-}, {
-    timestamps: true
 });
 
-module.exports = mongoose.model('Log', logSchema); 
+// Update the updatedAt field before saving
+logSchema.pre('save', function(next) {
+    this.updatedAt = Date.now();
+    next();
+});
+
+// Create indexes for efficient querying
+logSchema.index({ studentId: 1, tenant: 1 });
+logSchema.index({ courseId: 1, tenant: 1 });
+logSchema.index({ createdBy: 1, tenant: 1 });
+
+const Log = mongoose.model('Log', logSchema);
+
+module.exports = Log; 

@@ -1,0 +1,79 @@
+  (a) Code snippets 
+  (b) Multi-tenants, for students, teachers, TAs, and admins;  including different role restrictions (both denies and grants work properly, for creating/viewing classes/courses, logs, TAs, Students, etc.)
+
+        i.  including showing that if you're logged in as UVU admin and manually redirect to UofU that it forces you to log into the UofU;
+        ii.  if you're logged in as a UVU admin and manually redirect to the UVU create teacher page (an admin only page), that it keeps you logged in and allows you to go to and create a teacher successfully.  Alternatively, you could add this ability to the logs page, but only allow adding new teachers for admins.
+
+        iii.  if you're logged in as a UVU non-admin and manually redirect to the UVU create teacher page (an admin only page) it logs it to the console, logs you out, and redirects to the login page.
+
+        iv.  similar behavior for admin vs non-admin trying to see another class, student, log, etc. if using the URL manually
+
+  (c) Unit tests
+
+Functionality
+
+Start with a previous logs mongo/mongoose practicum.  
+
+1. To your existing page,
+
+   A. Add login/signup page(s).
+
+    1. The roles are admin, teacher, TA, and student.
+
+    2. Admin can create and see all courses and all student logs. Admin can create a teacher, TA, or student. Admin is "god" of the system.  Seed the database with two admin users named "root_uvu" and "root_uofu"; the passwords should be "willy" and "swoopy" respectively.
+
+    3. A teacher can create a course, add a student, create a TA, see all their courses, and logs.
+
+    4. TA can see all their courses, and logs. TA can create a student.
+
+    5. A student can only see their own courses, and logs.
+
+  B. Pages
+
+Student page.
+Admin page.
+Teacher page.
+TA page.
+    4. Add the ability for a student to add self to a course, either on the existing student page or a new page.
+
+  D. Use routing for navigating between pages.
+
+  E. You are responsible for a decent GUI design and UX.
+
+ 
+
+2. You must have automated testing.
+
+3. Use MongoDB (recommended to access via Mongoose).
+
+4. Add multi-tenants,
+
+    A. UVU has URL, and UofU has another URL.
+
+    B. UVU has UVU theme, and UofU has UofU theme.
+
+    C. UVU admin/teacher/TA/student can't see anything of the U, and vice versa. 
+
+
+routing:
+localhost:3000
+nothing shows except tenant selection. can select uvu or uofu.
+login is hidden until you select one which takes you to:
+  localhost:3000/uvu
+  uvu login
+  localhost:3000/uofu
+  uofu login
+
+  notes:
+  you can switch to either with the buttons that are still there for now.
+  sign up to only the specific tenant with the sign up.
+
+    localhost:3000/uvu/admin
+    all the admin functionality if you login as uvu admin
+    the same for /uofu/admin
+    uvu/teacher 
+    if you login as a teacher
+    uvu/TA
+    if you login as a TA
+    uvu/student
+  log out to go back to localhost:3000/uvu or localhost:3000/uofu

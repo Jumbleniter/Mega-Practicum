@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Course Management System</title>
+  <title>Student Dashboard</title>
 
   <!-- Bootstrap CSS (CDN with Local Fallback) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" onerror="this.onerror=null; this.href='bootstrap.min.css';">
@@ -26,21 +26,25 @@
       font-family: Arial, sans-serif;
     }
 
-    .tenant-container {
-      max-width: 600px;
+    .student-container {
+      max-width: 800px;
       margin: 50px auto;
       padding: 20px;
-      text-align: center;
     }
 
-    .tenant-button {
-      width: 200px;
-      height: 100px;
-      margin: 20px;
-      font-size: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .btn-primary {
+      background-color: var(--button-color);
+      border-color: var(--button-color);
+    }
+
+    .card-header {
+      background-color: var(--header-color);
+      color: white;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.2rem rgba(0,86,179,0.25);
     }
   </style>
 
@@ -53,36 +57,38 @@
   <!-- Custom JavaScript Modules -->
   <script src="/js/script.js"></script>
   <script src="/js/tenantClient.js"></script>
+  <script src="/js/authClient.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/courses.js"></script>
+  <script src="/js/logs.js"></script>
+  <script src="/js/ui.js"></script>
 </head>
 <body>
   <div class="container">
-    <div class="tenant-container">
-      <h1 class="mb-4">Select Your Institution</h1>
-      <div class="d-flex justify-content-center">
-        <button id="uvuButton" class="btn btn-primary tenant-button">
-          UVU
-        </button>
-        <button id="uofuButton" class="btn btn-danger tenant-button">
-          UofU
-        </button>
+    <div class="student-container">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Student Dashboard</h1>
+        <button id="logoutButton" class="btn btn-danger">Logout</button>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h3>View Courses</h3>
+        </div>
+        <div class="card-body">
+          <div id="coursesList"></div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h3>View Logs</h3>
+        </div>
+        <div class="card-body">
+          <div id="logsList"></div>
+        </div>
       </div>
     </div>
   </div>
 </body>
-</html>
-
-<!-- DONE: 
-  - Set lang attribute to American English ("en").
-  - Set charset to UTF-8.
-  - Used Stack Overflow's favicon.
-  - Loaded an external CSS file.
-  - Course options will be fetched dynamically via AJAX.
-  - UVU ID input is disabled until a course is selected.
-  - UVU ID field has max length of 8 characters, only allows digits.
-  - When 8 valid digits are entered, an AJAX request will fetch logs.
-  - If a valid response (200/304) is received, logs are displayed.
-  - Clicking on a log toggles visibility of the text (excluding date).
-  - "New Log" textarea and submit button are disabled until logs are displayed.
-  - "Add Log" button will send a PUT request via AJAX to store logs.
-  - Loaded an external JS file.
--->
+</html> 

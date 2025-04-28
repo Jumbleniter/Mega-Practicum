@@ -12,35 +12,44 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    email: {
+        type: String,
+        trim: true,
+        lowercase: true
+    },
     role: {
         type: String,
-        enum: ['admin', 'teacher', 'ta', 'student'],
-        required: true
-    },
-    tenant: {
-        type: String,
-        enum: ['uvu', 'uofu'],
-        required: true
+        required: true,
+        enum: ['admin', 'teacher', 'ta', 'student']
     },
     uvuId: {
         type: String,
-        required: function() {
-            return this.role === 'student';
-        },
-        validate: {
-            validator: function(v) {
-                return /^\d{8}$/.test(v);
-            },
-            message: props => `${props.value} is not a valid UVU ID! Must be 8 digits.`
-        }
+        unique: true,
+        sparse: true,
+        trim: true
+    },
+    tenant: {
+        type: String,
+        required: true,
+        enum: ['uvu', 'uofu']
+    },
+    enrolledCourses: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course'
+    }],
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    lastLogin: {
+        type: Date
     }
-}, {
-    timestamps: true
 });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
+    
     try {
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
@@ -52,7 +61,35 @@ userSchema.pre('save', async function(next) {
 
 // Method to compare passwords
 userSchema.methods.comparePassword = async function(candidatePassword) {
-    return bcrypt.compare(candidatePassword, this.password);
+    try {
+        return await bcrypt.compare(candidatePassword, this.password);
+    } catch (error) {
+        throw error;
+    }
 };
 
-module.exports = mongoose.model('User', userSchema); 
+// Method to get user profile (excluding sensitive data)
+userSchema.methods.getProfile = function() {
+    const userObject = this.toObject();
+    delete userObject.password;
+    return userObject;
+};
+
+// Static method to find by username and tenant
+userSchema.statics.findByUsernameAndTenant = async function(username, tenant) {
+    return this.findOne({ username, tenant });
+};
+
+// Static method to find by UVU ID and tenant
+userSchema.statics.findByUVUIdAndTenant = async function(uvuId, tenant) {
+    return this.findOne({ uvuId, tenant });
+};
+
+// Indexes
+userSchema.index({ username: 1, tenant: 1 }, { unique: true });
+userSchema.index({ uvuId: 1, tenant: 1 }, { unique: true, sparse: true });
+userSchema.index({ role: 1, tenant: 1 });
+
+const User = mongoose.model('User', userSchema);
+
+module.exports = User; 
