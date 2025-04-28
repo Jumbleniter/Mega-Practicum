@@ -55,6 +55,9 @@ const UI = {
                 $('#teacherSection').hide();
                 $('#taSection').hide();
                 $('#studentSection').show();
+                Courses.loadAvailableCourses();
+                Courses.loadEnrolledCourses();
+                Logs.loadLogs();
             }
         }
     },

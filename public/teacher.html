@@ -62,6 +62,7 @@
   <script src="/js/courses.js"></script>
   <script src="/js/logs.js"></script>
   <script src="/js/ui.js"></script>
+  <script src="/js/teacherClient.js"></script>
 </head>
 <body>
   <div class="container">
@@ -106,7 +107,7 @@
             </div>
             <div class="mb-3">
               <label for="taPassword" class="form-label">Password</label>
-              <input type="password" class="form-control" id="taPassword" required>
+              <input type="password" class="form-control" id="taPassword" autocomplete="new-password" required>
             </div>
             <button type="submit" class="btn btn-primary">Create TA</button>
           </form>
@@ -115,7 +116,7 @@
 
       <div class="card mb-4">
         <div class="card-header">
-          <h3>Add Student</h3>
+          <h3>Create Student</h3>
         </div>
         <div class="card-body">
           <form id="addStudentForm">
@@ -125,32 +126,36 @@
             </div>
             <div class="mb-3">
               <label for="studentPassword" class="form-label">Password</label>
-              <input type="password" class="form-control" id="studentPassword" required>
+              <input type="password" class="form-control" id="studentPassword" autocomplete="new-password" required>
             </div>
             <div class="mb-3">
               <label for="studentUVUId" class="form-label">UVU ID</label>
               <input type="text" class="form-control" id="studentUVUId" required>
             </div>
-            <button type="submit" class="btn btn-primary">Add Student</button>
+            <button type="submit" class="btn btn-primary">Create Student</button>
           </form>
         </div>
       </div>
 
       <div class="card mb-4">
         <div class="card-header">
-          <h3>View Courses</h3>
+          <h3>My Courses</h3>
         </div>
         <div class="card-body">
-          <div id="coursesList"></div>
+          <div id="coursesList">
+            <!-- Courses will be loaded here -->
+          </div>
         </div>
       </div>
 
       <div class="card mb-4">
         <div class="card-header">
-          <h3>View Logs</h3>
+          <h3>Course Logs</h3>
         </div>
         <div class="card-body">
-          <div id="logsList"></div>
+          <div id="logList">
+            <!-- Logs will be loaded here -->
+          </div>
         </div>
       </div>
     </div>

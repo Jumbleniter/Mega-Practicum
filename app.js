@@ -51,7 +51,11 @@ app.use((req, res, next) => {
 // Handle favicon requests
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
-// Serve static files from public directory - must come before tenant middleware
+// Tenant middleware - must come before static files
+app.use(tenantMiddleware.determineTenant);
+app.use(tenantMiddleware.verifyTenantAccess);
+
+// Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Root route - show tenant selection
@@ -59,30 +63,40 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Tenant middleware - must come after static files but before routes
-app.use(tenantMiddleware.determineTenant);
-app.use(tenantMiddleware.verifyTenantAccess);
-
 // Tenant-specific routes
 app.get('/:tenant', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Mount routes with proper tenant handling
-app.use('/:tenant/auth', authRoutes);
+// Student route
+app.get('/:tenant/student', authMiddleware.authenticateToken, authMiddleware.checkRole('student'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'student.html'));
+});
 
-// Admin route - serve admin.html
+// Teacher route
+app.get('/:tenant/teacher', authMiddleware.authenticateToken, authMiddleware.checkRole('teacher'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'teacher.html'));
+});
+
+// Admin route
 app.get('/:tenant/admin', authMiddleware.authenticateToken, authMiddleware.checkRole('admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// Admin API routes
-app.use('/:tenant/admin/api', authMiddleware.authenticateToken, authMiddleware.checkRole('admin'), adminRoutes);
+// Student routes
+app.use('/:tenant/student', authMiddleware.authenticateToken, authMiddleware.checkRole('student'), studentRoutes);
 
 // Other protected routes
 app.use('/:tenant/teacher', authMiddleware.authenticateToken, authMiddleware.checkRole('teacher'), teacherRoutes);
 app.use('/:tenant/ta', authMiddleware.authenticateToken, authMiddleware.checkRole('ta'), taRoutes);
-app.use('/:tenant/student', authMiddleware.authenticateToken, authMiddleware.checkRole('student'), studentRoutes);
+
+// Admin routes - both UI and API
+app.use('/:tenant/admin', authMiddleware.authenticateToken, authMiddleware.checkRole('admin'), adminRoutes);
+
+// Mount routes with proper tenant handling
+app.use('/:tenant/auth', authRoutes);
+
+// Other protected routes
 app.use('/:tenant/courses', authMiddleware.authenticateToken, courseRoutes);
 app.use('/:tenant/logs', authMiddleware.authenticateToken, logRoutes);
 
@@ -92,8 +106,8 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Something broke!' });
 });
 
-// Only start the server if not in test mode
-if (process.env.NODE_ENV !== 'test') {
+// Start the server unless we're running tests
+if (process.env.NODE_ENV !== 'test' || process.env.FORCE_SERVER === 'true') {
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
     });

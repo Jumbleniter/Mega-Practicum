@@ -7,13 +7,14 @@ const Log = require('./models/Log');
 console.log('Starting seed script...');
 console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Present' : 'Missing');
 
-const seedDatabase = async () => {
+const seedDatabase = async (clearExisting = false) => {
     try {
         // Connect to MongoDB
         await mongoose.connect(process.env.MONGODB_URI);
         console.log('Connected to MongoDB');
 
-        // Clear existing data
+        // Always clear existing data
+        console.log('Clearing existing data...');
         await User.deleteMany({});
         await Course.deleteMany({});
         await Log.deleteMany({});
@@ -122,7 +123,8 @@ const seedDatabase = async () => {
         // Create UVU courses
         const uvuTeacher = createdUsers.find(u => u.username === 'prof_smith');
         const uvuTA = createdUsers.find(u => u.username === 'ta_johnson');
-        const uvuStudents = createdUsers.filter(u => u.role === 'student' && u.tenant === 'uvu');
+        const uvuStudent1 = createdUsers.find(u => u.username === 'student1');
+        const uvuStudent2 = createdUsers.find(u => u.username === 'student2');
 
         const uvuCourses = [
             {
@@ -132,7 +134,7 @@ const seedDatabase = async () => {
                 tenant: 'uvu',
                 teacher: uvuTeacher._id,
                 tas: [uvuTA._id],
-                students: uvuStudents.map(s => s._id)
+                students: [uvuStudent1._id] // Only student1 is enrolled
             },
             {
                 courseId: 'CS1410',
@@ -141,14 +143,15 @@ const seedDatabase = async () => {
                 tenant: 'uvu',
                 teacher: uvuTeacher._id,
                 tas: [uvuTA._id],
-                students: uvuStudents.map(s => s._id)
+                students: [uvuStudent2._id] // Only student2 is enrolled
             }
         ];
 
         // Create UofU courses
         const uofuTeacher = createdUsers.find(u => u.username === 'prof_jones');
         const uofuTA = createdUsers.find(u => u.username === 'ta_williams');
-        const uofuStudents = createdUsers.filter(u => u.role === 'student' && u.tenant === 'uofu');
+        const uofuStudent3 = createdUsers.find(u => u.username === 'student3');
+        const uofuStudent4 = createdUsers.find(u => u.username === 'student4');
 
         const uofuCourses = [
             {
@@ -158,7 +161,7 @@ const seedDatabase = async () => {
                 tenant: 'uofu',
                 teacher: uofuTeacher._id,
                 tas: [uofuTA._id],
-                students: uofuStudents.map(s => s._id)
+                students: [uofuStudent3._id] // Only student3 is enrolled
             },
             {
                 courseId: 'CS2420',
@@ -167,7 +170,7 @@ const seedDatabase = async () => {
                 tenant: 'uofu',
                 teacher: uofuTeacher._id,
                 tas: [uofuTA._id],
-                students: uofuStudents.map(s => s._id)
+                students: [uofuStudent4._id] // Only student4 is enrolled
             }
         ];
 
@@ -245,4 +248,10 @@ const seedDatabase = async () => {
     }
 };
 
-seedDatabase(); 
+// Only run if called directly
+if (require.main === module) {
+    const clearExisting = process.argv.includes('--clear');
+    seedDatabase(clearExisting);
+}
+
+module.exports = seedDatabase; 

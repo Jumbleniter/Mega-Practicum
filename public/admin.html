@@ -69,6 +69,7 @@
   <script src="/js/courses.js"></script>
   <script src="/js/logs.js"></script>
   <script src="/js/ui.js"></script>
+  <script src="/js/admin.js"></script>
 </head>
 <body>
   <div class="container">
@@ -86,11 +87,11 @@
           <form id="createTeacherForm">
             <div class="mb-3">
               <label for="teacherUsername" class="form-label">Username</label>
-              <input type="text" class="form-control" id="teacherUsername" required>
+              <input type="text" class="form-control" id="teacherUsername" autocomplete="username" required>
             </div>
             <div class="mb-3">
               <label for="teacherPassword" class="form-label">Password</label>
-              <input type="password" class="form-control" id="teacherPassword" required>
+              <input type="password" class="form-control" id="teacherPassword" autocomplete="new-password" required>
             </div>
             <button type="submit" class="btn btn-primary">Create Teacher</button>
           </form>
@@ -105,11 +106,11 @@
           <form id="createTAForm">
             <div class="mb-3">
               <label for="taUsername" class="form-label">Username</label>
-              <input type="text" class="form-control" id="taUsername" required>
+              <input type="text" class="form-control" id="taUsername" autocomplete="username" required>
             </div>
             <div class="mb-3">
               <label for="taPassword" class="form-label">Password</label>
-              <input type="password" class="form-control" id="taPassword" required>
+              <input type="password" class="form-control" id="taPassword" autocomplete="new-password" required>
             </div>
             <button type="submit" class="btn btn-primary">Create TA</button>
           </form>
@@ -121,20 +122,78 @@
           <h3>Create Student</h3>
         </div>
         <div class="card-body">
-          <form id="addStudentForm">
+          <form id="createStudentForm">
             <div class="mb-3">
               <label for="studentUsername" class="form-label">Username</label>
-              <input type="text" class="form-control" id="studentUsername" required>
+              <input type="text" class="form-control" id="studentUsername" autocomplete="username" required>
             </div>
             <div class="mb-3">
               <label for="studentPassword" class="form-label">Password</label>
-              <input type="password" class="form-control" id="studentPassword" required>
+              <input type="password" class="form-control" id="studentPassword" autocomplete="new-password" required>
             </div>
             <div class="mb-3">
               <label for="studentUVUId" class="form-label">UVU ID</label>
               <input type="text" class="form-control" id="studentUVUId" required>
             </div>
             <button type="submit" class="btn btn-primary">Create Student</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h3>Manage Course Assignments</h3>
+        </div>
+        <div class="card-body">
+          <form id="assignTeacherForm" class="mb-4">
+            <h4>Assign Teacher to Course</h4>
+            <div class="mb-3">
+              <label for="courseSelect" class="form-label">Select Course</label>
+              <select class="form-control" id="courseSelect" required>
+                <option value="">Choose Course</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="teacherSelect" class="form-label">Select Teacher</label>
+              <select class="form-control" id="teacherSelect" required>
+                <option value="">Choose Teacher</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Assign Teacher</button>
+          </form>
+
+          <form id="assignTAForm" class="mb-4">
+            <h4>Assign TA to Course</h4>
+            <div class="mb-3">
+              <label for="taCourseSelect" class="form-label">Select Course</label>
+              <select class="form-control" id="taCourseSelect" required>
+                <option value="">Choose Course</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="taSelect" class="form-label">Select TA</label>
+              <select class="form-control" id="taSelect" required>
+                <option value="">Choose TA</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Assign TA</button>
+          </form>
+
+          <form id="assignStudentForm">
+            <h4>Add Student to Course</h4>
+            <div class="mb-3">
+              <label for="studentCourseSelect" class="form-label">Select Course</label>
+              <select class="form-control" id="studentCourseSelect" required>
+                <option value="">Choose Course</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="studentSelect" class="form-label">Select Student</label>
+              <select class="form-control" id="studentSelect" required>
+                <option value="">Choose Student</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Student</button>
           </form>
         </div>
       </div>
@@ -153,18 +212,11 @@
           <h3>View All Logs</h3>
         </div>
         <div class="card-body">
+          <button id="backToAllLogs" class="btn btn-primary mb-3" style="display: none;">All Logs</button>
           <div id="logList"></div>
         </div>
       </div>
     </div>
   </div>
-
-  <script>
-    $(document).ready(function() {
-      // Load courses and logs when the page loads
-      Courses.loadCourses();
-      Logs.loadLogs();
-    });
-  </script>
 </body>
 </html> 

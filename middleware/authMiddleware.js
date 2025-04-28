@@ -3,34 +3,69 @@ const config = require('../config');
 
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
-    const token = req.cookies.token;
+    console.log('Authenticating token:', {
+        path: req.path,
+        cookies: req.cookies,
+        headers: req.headers
+    });
 
+    // Check for token in cookies or Authorization header
+    let token = req.cookies.token;
+    
+    // Check Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    }
+    
     if (!token) {
-        return res.status(401).json({ error: 'Authentication required' });
+        console.log('No token found');
+        return res.status(401).json({ error: 'Unauthorized' });
     }
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || config.jwtSecret);
+        console.log('Token decoded:', {
+            userId: decoded.userId,
+            username: decoded.username,
+            role: decoded.role,
+            tenant: decoded.tenant
+        });
         req.user = decoded;
         next();
     } catch (error) {
-        return res.status(403).json({ error: 'Invalid token' });
+        console.error('Token verification failed:', error);
+        return res.status(401).json({ error: 'Invalid token' });
     }
 };
 
 // Middleware to check user role
-const checkRole = (requiredRoles) => {
+const checkRole = (requiredRole) => {
     return (req, res, next) => {
+        console.log('Checking role:', {
+            requiredRole,
+            userRole: req.user?.role,
+            path: req.path
+        });
+
         if (!req.user) {
-            return res.status(401).json({ error: 'Authentication required' });
+            console.log('No user found in request');
+            return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        // Convert single role to array for consistent handling
-        const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
-        
-        if (!roles.includes(req.user.role)) {
-            return res.status(403).json({ error: 'Access denied: Insufficient permissions' });
+        // Handle both single role and array of roles
+        const hasRequiredRole = Array.isArray(requiredRole)
+            ? requiredRole.includes(req.user.role)
+            : req.user.role === requiredRole;
+
+        if (!hasRequiredRole) {
+            console.log('Role mismatch:', {
+                required: requiredRole,
+                actual: req.user.role
+            });
+            return res.status(403).json({ error: 'Forbidden' });
         }
+
         next();
     };
 };

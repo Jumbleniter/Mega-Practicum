@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken, checkRole } = require('../middleware/authMiddleware');
-const { getTenant } = require('../middleware/tenantMiddleware');
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Log = require('../models/Log');
@@ -11,42 +10,81 @@ router.use(authenticateToken);
 router.use(checkRole('teacher'));
 
 // Teacher dashboard
-router.get('/dashboard', async (req, res) => {
-  try {
-    const tenant = getTenant(req);
-    const teacherId = req.user._id;
+router.get('/', async (req, res) => {
+    try {
+        const courses = await Course.find({
+            teacher: req.user.userId,
+            tenant: req.tenant
+        }).populate('students', 'username uvuId')
+          .populate('tas', 'username');
 
-    // Get teacher's courses
-    const courses = await Course.find({ 
-      tenant,
-      teacher: teacherId 
-    }).populate('students', 'username uvuId')
-      .populate('tas', 'username');
+        // Get counts for dashboard
+        const studentCount = courses.reduce((acc, course) => acc + course.students.length, 0);
+        const taCount = courses.reduce((acc, course) => acc + course.tas.length, 0);
 
-    // Get counts for dashboard
-    const studentCount = courses.reduce((acc, course) => acc + course.students.length, 0);
-    const taCount = courses.reduce((acc, course) => acc + course.tas.length, 0);
+        res.json({
+            message: 'Teacher dashboard',
+            stats: {
+                totalCourses: courses.length,
+                totalStudents: studentCount,
+                totalTAs: taCount
+            },
+            recentCourses: courses.slice(-5)
+        });
+    } catch (error) {
+        console.error('Teacher dashboard error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
-    res.json({
-      message: 'Teacher dashboard',
-      stats: {
-        totalCourses: courses.length,
-        totalStudents: studentCount,
-        totalTAs: taCount
-      },
-      recentCourses: courses.slice(-5)
-    });
-  } catch (error) {
-    console.error('Teacher dashboard error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+// Get all students in the tenant
+router.get('/students', async (req, res) => {
+    try {
+        const students = await User.find({
+            role: 'student',
+            tenant: req.tenant
+        }).select('username uvuId');
+
+        res.json({ success: true, data: students });
+    } catch (error) {
+        console.error('Error fetching students:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch students' });
+    }
+});
+
+// Create a new student
+router.post('/students', async (req, res) => {
+    try {
+        const existingUser = await User.findOne({
+            username: req.body.username,
+            tenant: req.tenant
+        });
+
+        if (existingUser) {
+            return res.status(400).json({ success: false, error: 'Username already exists' });
+        }
+
+        const student = new User({
+            username: req.body.username,
+            password: req.body.password,
+            uvuId: req.body.uvuId,
+            role: 'student',
+            tenant: req.tenant
+        });
+
+        await student.save();
+        res.json({ success: true, data: student });
+    } catch (error) {
+        console.error('Error creating student:', error);
+        res.status(500).json({ success: false, error: 'Failed to create student' });
+    }
 });
 
 // Get teacher's courses
 router.get('/courses', async (req, res) => {
     try {
         const courses = await Course.find({
-            teacher: req.user._id,
+            teacher: req.user.userId,
             tenant: req.tenant
         })
         .populate('tas', 'username')
@@ -61,24 +99,19 @@ router.get('/courses', async (req, res) => {
 // Create a new course
 router.post('/courses', async (req, res) => {
     try {
-        const { name, description } = req.body;
-        
-        if (!name) {
-            return res.status(400).json({ error: 'Course name is required' });
-        }
-
         const course = new Course({
-            name,
-            description,
-            teacher: req.user._id,
-            tenant: req.tenant
+            courseId: req.body.courseId,
+            display: req.body.display,
+            description: req.body.description,
+            tenant: req.tenant,
+            teacher: req.user.userId
         });
 
         await course.save();
-        res.status(201).json(course);
+        res.json({ success: true, data: course });
     } catch (error) {
         console.error('Error creating course:', error);
-        res.status(500).json({ error: 'Failed to create course' });
+        res.status(500).json({ success: false, error: 'Failed to create course' });
     }
 });
 
@@ -87,7 +120,7 @@ router.get('/courses/:courseId', async (req, res) => {
     try {
         const course = await Course.findOne({
             _id: req.params.courseId,
-            teacher: req.user._id,
+            teacher: req.user.userId,
             tenant: req.tenant
         })
         .populate('tas', 'username')
@@ -104,38 +137,12 @@ router.get('/courses/:courseId', async (req, res) => {
     }
 });
 
-// Update course
-router.put('/courses/:courseId', async (req, res) => {
-    try {
-        const { name, description } = req.body;
-        
-        const course = await Course.findOne({
-            _id: req.params.courseId,
-            teacher: req.user._id,
-            tenant: req.tenant
-        });
-
-        if (!course) {
-            return res.status(404).json({ error: 'Course not found' });
-        }
-
-        if (name) course.name = name;
-        if (description) course.description = description;
-
-        await course.save();
-        res.json(course);
-    } catch (error) {
-        console.error('Error updating course:', error);
-        res.status(500).json({ error: 'Failed to update course' });
-    }
-});
-
 // Get course logs
 router.get('/courses/:courseId/logs', async (req, res) => {
     try {
         const course = await Course.findOne({
             _id: req.params.courseId,
-            teacher: req.user._id,
+            teacher: req.user.userId,
             tenant: req.tenant
         });
 
@@ -144,12 +151,12 @@ router.get('/courses/:courseId/logs', async (req, res) => {
         }
 
         const logs = await Log.find({
-            course: req.params.courseId,
+            courseId: req.params.courseId,
             tenant: req.tenant
         })
-        .populate('student', 'username uvuId')
         .populate('createdBy', 'username')
-        .sort({ date: -1 });
+        .populate('studentId', 'username uvuId')
+        .sort({ createdAt: -1 });
 
         res.json(logs);
     } catch (error) {
@@ -158,32 +165,55 @@ router.get('/courses/:courseId/logs', async (req, res) => {
     }
 });
 
+// Get all logs for all courses
+router.get('/logs', async (req, res) => {
+    try {
+        const courses = await Course.find({
+            teacher: req.user.userId,
+            tenant: req.tenant
+        });
+
+        const courseIds = courses.map(course => course._id);
+        
+        const logs = await Log.find({
+            courseId: { $in: courseIds },
+            tenant: req.tenant
+        })
+        .populate('createdBy', 'username')
+        .populate('studentId', 'username uvuId')
+        .sort({ createdAt: -1 });
+
+        res.json(logs);
+    } catch (error) {
+        console.error('Error fetching logs:', error);
+        res.status(500).json({ error: 'Failed to fetch logs' });
+    }
+});
+
 // Create TA
 router.post('/tas', async (req, res) => {
     try {
-        const { username, password } = req.body;
-        
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password are required' });
-        }
+        const existingUser = await User.findOne({
+            username: req.body.username,
+            tenant: req.tenant
+        });
 
-        const existingUser = await User.findOne({ username, tenant: req.tenant });
         if (existingUser) {
-            return res.status(400).json({ error: 'Username already exists' });
+            return res.status(400).json({ success: false, error: 'Username already exists' });
         }
 
         const ta = new User({
-            username,
-            password,
+            username: req.body.username,
+            password: req.body.password,
             role: 'ta',
             tenant: req.tenant
         });
 
         await ta.save();
-        res.status(201).json({ message: 'TA created successfully' });
+        res.json({ success: true, data: ta });
     } catch (error) {
         console.error('Error creating TA:', error);
-        res.status(500).json({ error: 'Failed to create TA' });
+        res.status(500).json({ success: false, error: 'Failed to create TA' });
     }
 });
 
@@ -192,7 +222,7 @@ router.post('/courses/:courseId/tas', async (req, res) => {
     try {
         const course = await Course.findOne({
             _id: req.params.courseId,
-            teacher: req.user._id,
+            teacher: req.user.userId,
             tenant: req.tenant
         });
 
@@ -230,7 +260,7 @@ router.delete('/courses/:courseId/tas/:taId', async (req, res) => {
     try {
         const course = await Course.findOne({
             _id: req.params.courseId,
-            teacher: req.user._id,
+            teacher: req.user.userId,
             tenant: req.tenant
         });
 
@@ -258,7 +288,7 @@ router.post('/courses/:courseId/students', async (req, res) => {
     try {
         const course = await Course.findOne({
             _id: req.params.courseId,
-            teacher: req.user._id,
+            teacher: req.user.userId,
             tenant: req.tenant
         });
 
@@ -296,7 +326,7 @@ router.delete('/courses/:courseId/students/:studentId', async (req, res) => {
     try {
         const course = await Course.findOne({
             _id: req.params.courseId,
-            teacher: req.user._id,
+            teacher: req.user.userId,
             tenant: req.tenant
         });
 

@@ -1,0 +1,11 @@
+1. tests for admin adding teachers, tas, students.
+2 admin able to add courses.
+3 admin able to add people to courses.
+4 Teachers are over courses (one to many)
+5 Tas are over courses (one to many)
+6 students can sign into courses.
+7 teacher Tas and students can add logs
+
+8 tests fix up
+
+9 security. Can't access other tenants data, and admin only access with admin login.

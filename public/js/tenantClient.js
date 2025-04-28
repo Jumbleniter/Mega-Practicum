@@ -38,7 +38,7 @@ const TenantClient = {
     // Set up tenant switcher
     setupTenantSwitcher: function() {
         if (window.DEBUG) console.log('Setting up tenant switcher');
-        
+
         // Handle UVU button click
         $('#uvuButton').on('click', function() {
             window.location.href = '/uvu';
@@ -135,7 +135,7 @@ $(document).ready(function() {
 
     // Initialize tenant switcher
     TenantClient.setupTenantSwitcher();
-});
+}); 
 
 // Make TenantClient globally available
 window.TenantClient = TenantClient; 

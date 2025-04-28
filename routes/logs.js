@@ -9,34 +9,42 @@ const User = require('../models/User');
 router.use(authenticateToken);
 
 // Get logs for a course (admin, teacher, and TA)
-router.get('/course/:courseId', checkRole(['admin', 'teacher', 'ta']), async (req, res) => {
+router.get('/', checkRole(['admin', 'teacher', 'ta']), async (req, res) => {
     try {
-        const course = await Course.findOne({
-            _id: req.params.courseId,
-            tenant: req.tenant
-        });
+        const query = { tenant: req.tenant };
+        
+        // If course is provided, filter by course
+        if (req.query.course) {
+            query.courseId = req.query.course;
+            
+            // Verify course exists and user has access
+            const course = await Course.findOne({
+                _id: req.query.course,
+                tenant: req.tenant
+            });
 
-        if (!course) {
-            return res.status(404).json({ error: 'Course not found' });
+            if (!course) {
+                return res.status(404).json({ error: 'Course not found' });
+            }
+
+            // Verify access based on role
+            if (req.user.role === 'teacher' && course.teacher.toString() !== req.user.userId) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+
+            if (req.user.role === 'ta' && !course.tas.includes(req.user.userId)) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
         }
 
-        // Verify access based on role
-        if (req.user.role === 'teacher' && course.teacher.toString() !== req.user.userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        const logs = await Log.find(query)
+            .populate('studentId', 'username uvuId')
+            .populate('createdBy', 'username')
+            .sort({ createdAt: -1 });
 
-        if (req.user.role === 'ta' && !course.tas.includes(req.user.userId)) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        const logs = await Log.find({
-            courseId: req.params.courseId,
-            tenant: req.tenant
-        }).sort({ createdAt: -1 });
-
-        res.json(logs);
+        res.json({ success: true, data: logs });
     } catch (error) {
-        console.error('Error fetching course logs:', error);
+        console.error('Error fetching logs:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

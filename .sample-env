@@ -1,4 +1,6 @@
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://<username>:<password>@task-manager-cluster.xvcgk.mongodb.net/student-logs?retryWrites=true&w=majority
+MONGODB_URI_TEST=mongodb+srv://<username>:<password>@task-manager-cluster.xvcgk.mongodb.net/course_management_test?retryWrites=true&w=majority&appName=course_management_test
 PORT=3000 
-SESSION_SECRET=<HEX>
-NODE_ENV=test npm test
+SESSION_SECRET=<hex>
+DEFAULT_TENANT=uvu
+NODE_ENV=test 

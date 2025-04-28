@@ -1,20 +1,35 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken, checkRole } = require('../middleware/authMiddleware');
-const { getTenant } = require('../middleware/tenantMiddleware');
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Log = require('../models/Log');
+const path = require('path');
 
 // Apply authentication and role check middleware to all admin routes
 router.use(authenticateToken);
 router.use(checkRole('admin'));
 
+// Debug middleware
+router.use((req, res, next) => {
+    console.log('Admin route accessed:', {
+        path: req.path,
+        method: req.method,
+        user: req.user,
+        tenant: req.tenant
+    });
+    next();
+});
+
+// Root admin route - serve the admin dashboard
+router.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin.html'));
+});
+
 // Admin dashboard
 router.get('/dashboard', async (req, res) => {
   try {
-    const tenant = getTenant(req);
-    const users = await User.find({ tenant });
+    const users = await User.find({ tenant: req.tenant });
     const userCounts = {
       total: users.length,
       teachers: users.filter(u => u.role === 'teacher').length,
@@ -37,14 +52,13 @@ router.get('/dashboard', async (req, res) => {
 router.post('/users', async (req, res) => {
   try {
     const { username, password, role, email } = req.body;
-    const tenant = getTenant(req);
 
     const newUser = new User({
       username,
       password,
       role,
       email,
-      tenant
+      tenant: req.tenant
     });
 
     await newUser.save();
@@ -57,8 +71,7 @@ router.post('/users', async (req, res) => {
 
 router.get('/users', async (req, res) => {
   try {
-    const tenant = getTenant(req);
-    const users = await User.find({ tenant });
+    const users = await User.find({ tenant: req.tenant });
     res.json(users);
   } catch (error) {
     console.error('Get users error:', error);
@@ -69,9 +82,8 @@ router.get('/users', async (req, res) => {
 router.put('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const tenant = getTenant(req);
     const user = await User.findOneAndUpdate(
-      { _id: id, tenant },
+      { _id: id, tenant: req.tenant },
       req.body,
       { new: true }
     );
@@ -90,7 +102,7 @@ router.put('/users/:id', async (req, res) => {
 router.delete('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const tenant = getTenant(req);
+    const tenant = req.tenant;
     const user = await User.findOneAndDelete({ _id: id, tenant });
     
     if (!user) {
@@ -104,238 +116,166 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
-// Get all courses
+// Course management routes
+router.post('/courses', async (req, res) => {
+  try {
+    const { name, description, teacherId } = req.body;
+    const newCourse = new Course({
+      name,
+      description,
+      teacher: teacherId,
+      tenant: req.tenant
+    });
+
+    await newCourse.save();
+    res.status(201).json(newCourse);
+  } catch (error) {
+    console.error('Create course error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/courses', async (req, res) => {
-    try {
-        const tenant = req.tenant;
-        const courses = await Course.find({ tenant })
-            .populate('teacher', 'username')
-            .populate('tas', 'username')
-            .populate('students', 'username uvuId');
-        res.json({ success: true, data: courses });
-    } catch (error) {
-        console.error('Error fetching courses:', error);
-        res.status(500).json({ success: false, error: 'Failed to fetch courses' });
-    }
+  try {
+    const courses = await Course.find({ tenant: req.tenant })
+      .populate('teacher', 'username')
+      .populate('tas', 'username')
+      .populate('students', 'username');
+    res.json(courses);
+  } catch (error) {
+    console.error('Get courses error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// Get all logs
-router.get('/logs', async (req, res) => {
-    try {
-        const tenant = req.tenant;
-        const logs = await Log.find({ tenant })
-            .populate('courseId', 'courseId display')
-            .populate('createdBy', 'username')
-            .sort({ createdAt: -1 });
-        res.json({ success: true, data: logs });
-    } catch (error) {
-        console.error('Error fetching logs:', error);
-        res.status(500).json({ success: false, error: 'Failed to fetch logs' });
+router.put('/courses/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const course = await Course.findOneAndUpdate(
+      { _id: id, tenant: req.tenant },
+      req.body,
+      { new: true }
+    )
+    .populate('teacher', 'username')
+    .populate('tas', 'username')
+    .populate('students', 'username');
+    
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
     }
+    
+    res.json(course);
+  } catch (error) {
+    console.error('Update course error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// Create teacher
-router.post('/teachers', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password are required' });
-        }
-
-        const existingUser = await User.findOne({ username, tenant: req.tenant });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Username already exists' });
-        }
-
-        const teacher = new User({
-            username,
-            password,
-            role: 'teacher',
-            tenant: req.tenant
-        });
-
-        await teacher.save();
-        res.status(201).json({ message: 'Teacher created successfully' });
-    } catch (error) {
-        console.error('Error creating teacher:', error);
-        res.status(500).json({ error: 'Failed to create teacher' });
+router.delete('/courses/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const course = await Course.findOneAndDelete({ _id: id, tenant: req.tenant });
+    
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
     }
-});
-
-// Create TA
-router.post('/tas', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password are required' });
-        }
-
-        const existingUser = await User.findOne({ username, tenant: req.tenant });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Username already exists' });
-        }
-
-        const ta = new User({
-            username,
-            password,
-            role: 'ta',
-            tenant: req.tenant
-        });
-
-        await ta.save();
-        res.status(201).json({ message: 'TA created successfully' });
-    } catch (error) {
-        console.error('Error creating TA:', error);
-        res.status(500).json({ error: 'Failed to create TA' });
-    }
-});
-
-// Create student
-router.post('/students', async (req, res) => {
-    try {
-        const { username, password, uvuId } = req.body;
-        
-        if (!username || !password || !uvuId) {
-            return res.status(400).json({ error: 'Username, password, and UVU ID are required' });
-        }
-
-        const existingUser = await User.findOne({ username, tenant: req.tenant });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Username already exists' });
-        }
-
-        const existingStudent = await User.findOne({ uvuId, tenant: req.tenant });
-        if (existingStudent) {
-            return res.status(400).json({ error: 'UVU ID already exists' });
-        }
-
-        const student = new User({
-            username,
-            password,
-            uvuId,
-            role: 'student',
-            tenant: req.tenant
-        });
-
-        await student.save();
-        res.status(201).json({ message: 'Student created successfully' });
-    } catch (error) {
-        console.error('Error creating student:', error);
-        res.status(500).json({ error: 'Failed to create student' });
-    }
+    
+    res.json({ message: 'Course deleted successfully' });
+  } catch (error) {
+    console.error('Delete course error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Assign teacher to course
 router.post('/courses/:courseId/teacher', async (req, res) => {
-    try {
-        const course = await Course.findOne({
-            _id: req.params.courseId,
-            tenant: req.tenant
-        });
+  try {
+    const { courseId } = req.params;
+    const { teacherId } = req.body;
 
-        if (!course) {
-            return res.status(404).json({ error: 'Course not found' });
-        }
+    const course = await Course.findOneAndUpdate(
+      { _id: courseId, tenant: req.tenant },
+      { teacher: teacherId },
+      { new: true }
+    )
+    .populate('teacher', 'username')
+    .populate('tas', 'username')
+    .populate('students', 'username');
 
-        const { teacherId } = req.body;
-        const teacher = await User.findOne({
-            _id: teacherId,
-            tenant: req.tenant,
-            role: 'teacher'
-        });
-
-        if (!teacher) {
-            return res.status(404).json({ error: 'Teacher not found' });
-        }
-
-        if (course.teacher) {
-            return res.status(400).json({ error: 'Course already has a teacher' });
-        }
-
-        course.teacher = teacherId;
-        await course.save();
-
-        res.json({ message: 'Teacher assigned to course successfully' });
-    } catch (error) {
-        console.error('Error assigning teacher:', error);
-        res.status(500).json({ error: 'Failed to assign teacher' });
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
     }
+
+    res.json(course);
+  } catch (error) {
+    console.error('Assign teacher error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Assign TA to course
 router.post('/courses/:courseId/tas', async (req, res) => {
-    try {
-        const course = await Course.findOne({
-            _id: req.params.courseId,
-            tenant: req.tenant
-        });
+  try {
+    const { courseId } = req.params;
+    const { taId } = req.body;
 
-        if (!course) {
-            return res.status(404).json({ error: 'Course not found' });
-        }
+    const course = await Course.findOneAndUpdate(
+      { _id: courseId, tenant: req.tenant },
+      { $addToSet: { tas: taId } },
+      { new: true }
+    )
+    .populate('teacher', 'username')
+    .populate('tas', 'username')
+    .populate('students', 'username');
 
-        const { taId } = req.body;
-        const ta = await User.findOne({
-            _id: taId,
-            tenant: req.tenant,
-            role: 'ta'
-        });
-
-        if (!ta) {
-            return res.status(404).json({ error: 'TA not found' });
-        }
-
-        if (course.tas.includes(taId)) {
-            return res.status(400).json({ error: 'TA already assigned to course' });
-        }
-
-        course.tas.push(taId);
-        await course.save();
-
-        res.json({ message: 'TA assigned to course successfully' });
-    } catch (error) {
-        console.error('Error assigning TA:', error);
-        res.status(500).json({ error: 'Failed to assign TA' });
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
     }
+
+    res.json(course);
+  } catch (error) {
+    console.error('Assign TA error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Add student to course
 router.post('/courses/:courseId/students', async (req, res) => {
-    try {
-        const course = await Course.findOne({
-            _id: req.params.courseId,
-            tenant: req.tenant
-        });
+  try {
+    const { courseId } = req.params;
+    const { studentId } = req.body;
 
-        if (!course) {
-            return res.status(404).json({ error: 'Course not found' });
-        }
+    const course = await Course.findOneAndUpdate(
+      { _id: courseId, tenant: req.tenant },
+      { $addToSet: { students: studentId } },
+      { new: true }
+    )
+    .populate('teacher', 'username')
+    .populate('tas', 'username')
+    .populate('students', 'username');
 
-        const { studentId } = req.body;
-        const student = await User.findOne({
-            _id: studentId,
-            tenant: req.tenant,
-            role: 'student'
-        });
-
-        if (!student) {
-            return res.status(404).json({ error: 'Student not found' });
-        }
-
-        if (course.students.includes(studentId)) {
-            return res.status(400).json({ error: 'Student already enrolled in course' });
-        }
-
-        course.students.push(studentId);
-        await course.save();
-
-        res.json({ message: 'Student added to course successfully' });
-    } catch (error) {
-        console.error('Error adding student:', error);
-        res.status(500).json({ error: 'Failed to add student' });
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
     }
+
+    res.json(course);
+  } catch (error) {
+    console.error('Add student error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Log management routes
+router.get('/logs', async (req, res) => {
+  try {
+    const logs = await Log.find({ tenant: req.tenant })
+      .sort({ timestamp: -1 })
+      .limit(100);
+    res.json(logs);
+  } catch (error) {
+    console.error('Get logs error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 module.exports = router; 

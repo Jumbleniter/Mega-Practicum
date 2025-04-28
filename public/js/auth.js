@@ -163,6 +163,67 @@ const Auth = {
         });
     },
 
+    handleSignup: async function(e) {
+        e.preventDefault();
+        const username = $('#signupUsername').val();
+        const password = $('#signupPassword').val();
+        const uvuId = $('#signupUVUId').val();
+        
+        if (window.DEBUG) console.log('Attempting signup for:', username);
+        
+        try {
+            const response = await this.signup(username, password, uvuId);
+            if (response.success) {
+                window.currentUser = response.user;
+                // Redirect to appropriate page based on role
+                if (response.user.role === 'admin') {
+                    window.location.href = `/${window.currentTenant}/admin`;
+                } else if (response.user.role === 'teacher') {
+                    window.location.href = `/${window.currentTenant}/teacher`;
+                } else if (response.user.role === 'ta') {
+                    window.location.href = `/${window.currentTenant}/ta`;
+                } else if (response.user.role === 'student') {
+                    window.location.href = `/${window.currentTenant}/student`;
+                }
+            } else {
+                if (window.UI) {
+                    window.UI.showError(response.message || 'Signup failed');
+                } else {
+                    $('#errorMessage .message').text(response.message || 'Signup failed');
+                    $('#errorMessage').show();
+                }
+            }
+        } catch (error) {
+            console.error('Signup error:', error);
+            if (window.UI) {
+                window.UI.showError('Signup failed. Please try again.');
+            } else {
+                $('#errorMessage .message').text('Signup failed. Please try again.');
+                $('#errorMessage').show();
+            }
+        }
+    },
+
+    signup: async (username, password, uvuId) => {
+        try {
+            const response = await fetch(`/${window.currentTenant}/auth/signup`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password, uvuId }),
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Signup error:', error);
+            throw error;
+        }
+    },
+
     initializeAuthHandlers: function() {
         if (window.DEBUG) console.log('Initializing auth handlers');
         
@@ -211,6 +272,31 @@ const Auth = {
         // Login form handler
         $('#loginFormElement').off('submit').on('submit', (e) => this.handleLogin(e));
 
+        // Signup form handler
+        $('#signupFormElement').off('submit').on('submit', (e) => this.handleSignup(e));
+
+        // Show signup form handler
+        $('#showSignup').off('click').on('click', (e) => {
+            e.preventDefault();
+            if (window.UI) {
+                window.UI.showSignup();
+            } else {
+                $('#loginForm').hide();
+                $('#signupForm').show();
+            }
+        });
+
+        // Show login form handler
+        $('#showLogin').off('click').on('click', (e) => {
+            e.preventDefault();
+            if (window.UI) {
+                window.UI.showLogin();
+            } else {
+                $('#signupForm').hide();
+                $('#loginForm').show();
+            }
+        });
+
         // Logout handler
         $('#logoutButton').off('click').on('click', async () => {
             try {
@@ -230,6 +316,11 @@ const Auth = {
     },
 
     login: async (username, password) => {
+        console.log('Attempting login with:', {
+            username,
+            currentTenant: window.currentTenant,
+            fullUrl: `/${window.currentTenant}/auth/login`
+        });
         try {
             const response = await fetch(`/${window.currentTenant}/auth/login`, {
                 method: 'POST',
@@ -239,10 +330,22 @@ const Auth = {
                 body: JSON.stringify({ username, password }),
                 credentials: 'include'
             });
+            console.log('Login response status:', response.status);
+            console.log('Login response headers:', Object.fromEntries(response.headers.entries()));
+            
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Login failed:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorText
+                });
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return await response.json();
+            
+            const data = await response.json();
+            console.log('Login successful:', data);
+            return data;
         } catch (error) {
             console.error('Login error:', error);
             throw error;
@@ -267,7 +370,7 @@ const Auth = {
 };
 
 // Make Auth globally available
-window.Auth = Auth;
+window.Auth = Auth; 
 
 // Initialize auth handlers when the page loads
 $(document).ready(function() {

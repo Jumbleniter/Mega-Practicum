@@ -5,9 +5,16 @@ const Logs = {
     loadLogs: async function(courseId = null) {
         if (window.DEBUG) console.log('Loading logs for tenant:', window.currentTenant);
         try {
-            const url = courseId 
-                ? `/${window.currentTenant}/admin/api/courses/${courseId}/logs`
-                : `/${window.currentTenant}/admin/api/logs`;
+            let url;
+            if (window.currentUser.role === 'student') {
+                url = courseId 
+                    ? `/${window.currentTenant}/student/courses/${courseId}/logs`
+                    : `/${window.currentTenant}/student/logs`;
+            } else {
+                url = courseId 
+                    ? `/${window.currentTenant}/admin/api/courses/${courseId}/logs`
+                    : `/${window.currentTenant}/admin/api/logs`;
+            }
             
             const response = await $.ajax({
                 url: url,
@@ -17,12 +24,9 @@ const Logs = {
                 }
             });
             
-            if (response.success) {
-                this.displayLogs(response.data);
-            } else {
-                console.error('Error loading logs:', response.error);
-                UI.showError('Failed to load logs. Please try again.');
-            }
+            // Handle both direct array response and success/data response
+            const logs = Array.isArray(response) ? response : (response.success ? response.data : []);
+            this.displayLogs(logs);
         } catch (error) {
             console.error('Error loading logs:', error);
             UI.showError('Failed to load logs. Please try again.');
@@ -33,16 +37,16 @@ const Logs = {
         const logList = $('#logList');
         logList.empty();
         
-        if (logs.length === 0) {
+        if (!logs || logs.length === 0) {
             logList.append('<div class="alert alert-info">No logs found.</div>');
             return;
         }
 
         logs.forEach(log => {
             logList.append(`
-                <div class="log-item">
+                <div class="log-item mb-3 p-3 border rounded">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5>${log.studentId}</h5>
+                        <h5>Course ID: ${log.courseId}</h5>
                         <small class="text-muted">${new Date(log.createdAt).toLocaleString()}</small>
                     </div>
                     <p class="mb-1">${log.content}</p>
