@@ -269,13 +269,46 @@ router.post('/courses/:courseId/students', async (req, res) => {
 router.get('/logs', async (req, res) => {
   try {
     const logs = await Log.find({ tenant: req.tenant })
-      .sort({ timestamp: -1 })
+      .populate('createdBy', 'username')
+      .sort({ createdAt: -1 })
       .limit(100);
     res.json(logs);
   } catch (error) {
     console.error('Get logs error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Get logs, optionally filtered by course
+router.get('/api/logs', async (req, res) => {
+    try {
+        const query = { tenant: req.tenant };
+        
+        // If course is provided, filter by course
+        if (req.query.course) {
+            query.courseId = req.query.course;
+            
+            // Verify course exists
+            const course = await Course.findOne({
+                _id: req.query.course,
+                tenant: req.tenant
+            });
+
+            if (!course) {
+                return res.status(404).json({ success: false, error: 'Course not found' });
+            }
+        }
+
+        const logs = await Log.find(query)
+            .populate('studentId', 'username uvuId')
+            .populate('createdBy', 'username')
+            .sort({ createdAt: -1 });
+
+        res.json({ success: true, data: logs });
+    } catch (error) {
+        console.error('Error fetching logs:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
 });
 
 module.exports = router; 

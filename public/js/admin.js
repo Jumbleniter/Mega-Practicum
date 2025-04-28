@@ -115,42 +115,43 @@ const Admin = {
 
     // Load logs, optionally filtered by course
     loadLogs: function(courseId = null) {
-        // console.log('Loading logs for tenant:', window.currentTenant, 'courseId:', courseId);
         const url = courseId 
-            ? `/${window.currentTenant}/admin/courses/${courseId}/logs`
-            : `/${window.currentTenant}/admin/logs`;
-        
-        // console.log('Fetching logs from URL:', url);
+            ? `/${window.currentTenant}/admin/api/logs?course=${courseId}`
+            : `/${window.currentTenant}/admin/api/logs`;
         
         $.get(url)
             .done(function(response) {
                 const $logList = $('#logList');
                 $logList.empty();
                 
-                // if (window.DEBUG) console.log('Logs response:', response);
-                
-                if (!response || !Array.isArray(response)) {
+                if (!response || !response.success) {
                     console.error('Invalid logs response:', response);
                     $logList.append('<div class="alert alert-danger">Error loading logs</div>');
                     return;
                 }
                 
-                if (response.length === 0) {
+                const logs = response.data || [];
+                if (logs.length === 0) {
                     $logList.append('<div class="alert alert-info">No logs found.</div>');
                     return;
                 }
                 
-                // console.log('Filtered logs for course:', courseId, 'Count:', response.length);
-                response.forEach(function(log) {
-                    // console.log('Processing log:', log);
+                logs.forEach(function(log) {
                     $logList.append(`
-                        <div class="log-item">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h5>${log.studentId || 'Unknown Student'}</h5>
-                                <small class="text-muted">${new Date(log.createdAt).toLocaleString()}</small>
+                        <div class="log-item mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <p class="card-text">${log.content}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            ${new Date(log.createdAt).toLocaleString()}
+                                        </small>
+                                        <small class="text-muted">
+                                            By: ${log.createdBy?.username || 'Unknown'}
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
-                            <p class="mb-1">${log.content}</p>
-                            <small class="text-muted">Created by: ${log.createdBy?.username || 'Unknown'}</small>
                         </div>
                     `);
                 });
