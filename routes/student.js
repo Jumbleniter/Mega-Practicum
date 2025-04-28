@@ -4,6 +4,10 @@ const { authenticateToken, checkRole } = require('../middleware/authMiddleware')
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Log = require('../models/Log');
+const mongoose = require('mongoose');
+
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
 
 // Student dashboard
 router.get('/dashboard', async (req, res) => {
@@ -40,22 +44,22 @@ router.get('/dashboard', async (req, res) => {
 });
 
 // Get available courses
-router.get('/courses/available', async (req, res) => {
-    console.log('GET /courses/available - Request received:', {
+router.get('/available', async (req, res) => {
+    console.log('GET /available - Request received:', {
         user: req.user,
         tenant: req.tenant
     });
     
     try {
         const student = await User.findOne({ 
-            _id: req.user.userId,
+            _id: req.user._id,
             tenant: req.tenant
         });
         console.log('Found student:', student);
         
         if (!student) {
             console.log('Student not found');
-            return res.status(404).json({ success: false, error: 'Student not found' });
+            return res.status(404).json({ error: 'Student not found' });
         }
 
         const courses = await Course.find({
@@ -66,30 +70,30 @@ router.get('/courses/available', async (req, res) => {
           .populate('students', 'username');
 
         console.log('Found available courses:', courses);
-        res.json({ success: true, data: courses });
+        res.json(courses);
     } catch (error) {
         console.error('Error fetching available courses:', error);
-        res.status(500).json({ success: false, error: 'Failed to fetch available courses' });
+        res.status(500).json({ error: 'Failed to fetch available courses' });
     }
 });
 
 // Get enrolled courses
-router.get('/courses', async (req, res) => {
-    console.log('GET /courses - Request received:', {
+router.get('/', async (req, res) => {
+    console.log('GET / - Request received:', {
         user: req.user,
         tenant: req.tenant
     });
     
     try {
         const student = await User.findOne({ 
-            _id: req.user.userId,
+            _id: req.user._id,
             tenant: req.tenant
         });
         console.log('Found student:', student);
         
         if (!student) {
             console.log('Student not found');
-            return res.status(404).json({ success: false, error: 'Student not found' });
+            return res.status(404).json({ error: 'Student not found' });
         }
 
         const courses = await Course.find({
@@ -100,10 +104,10 @@ router.get('/courses', async (req, res) => {
           .populate('students', 'username');
 
         console.log('Found enrolled courses:', courses);
-        res.json({ success: true, data: courses });
+        res.json(courses);
     } catch (error) {
         console.error('Error fetching enrolled courses:', error);
-        res.status(500).json({ success: false, error: 'Failed to fetch enrolled courses' });
+        res.status(500).json({ error: 'Failed to fetch enrolled courses' });
     }
 });
 
@@ -129,86 +133,162 @@ router.get('/courses/:courseId', async (req, res) => {
     }
 });
 
-// Get student's logs for a course
+// Get student's logs
+router.get('/logs', async (req, res) => {
+    console.log('GET /logs - Request received:', {
+        user: req.user,
+        tenant: req.tenant
+    });
+    
+    try {
+        const logs = await Log.find({
+            studentId: req.user.userId,
+            tenant: req.tenant
+        })
+        .populate('createdBy', 'username')
+        .sort({ createdAt: -1 });
+
+        console.log('Found logs:', logs);
+        res.json(logs);
+    } catch (error) {
+        console.error('Error fetching student logs:', error);
+        res.status(500).json({ error: 'Failed to fetch student logs' });
+    }
+});
+
+// Get logs for a specific course
 router.get('/courses/:courseId/logs', async (req, res) => {
     try {
         const course = await Course.findOne({
-            _id: req.params.courseId,
-            students: req.user._id,
+            _id: new mongoose.Types.ObjectId(req.params.courseId),
             tenant: req.tenant
         });
 
         if (!course) {
-            return res.status(404).json({ error: 'Course not found' });
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        // Check if student is enrolled in the course
+        if (!course.students.includes(new mongoose.Types.ObjectId(req.user.userId))) {
+            return res.status(403).json({ message: 'Not enrolled in this course' });
         }
 
         const logs = await Log.find({
-            course: req.params.courseId,
-            student: req.user._id,
+            courseId: new mongoose.Types.ObjectId(req.params.courseId),
             tenant: req.tenant
-        })
-        .populate('createdBy', 'username')
-        .sort({ date: -1 });
+        }).sort({ createdAt: -1 });
 
         res.json(logs);
     } catch (error) {
-        console.error('Error fetching course logs:', error);
-        res.status(500).json({ error: 'Failed to fetch logs' });
+        console.error('Error fetching logs:', error);
+        res.status(500).json({ message: 'Error fetching logs' });
     }
 });
 
 // Enroll in a course
 router.post('/courses/:courseId/enroll', async (req, res) => {
+    console.log('Enrollment request received:', {
+        courseId: req.params.courseId,
+        userId: req.user._id,
+        tenant: req.tenant
+    });
+    
     try {
         const course = await Course.findOne({
             _id: req.params.courseId,
             tenant: req.tenant
         });
 
+        console.log('Found course:', course);
+
         if (!course) {
-            return res.status(404).json({ error: 'Course not found' });
+            console.log('Course not found');
+            return res.status(404).json({ success: false, error: 'Course not found' });
         }
 
         // Verify course belongs to student's tenant
         if (course.tenant !== req.tenant) {
-            return res.status(403).json({ error: 'Cannot enroll in courses from other tenants' });
+            console.log('Tenant mismatch:', {
+                courseTenant: course.tenant,
+                userTenant: req.tenant
+            });
+            return res.status(403).json({ success: false, error: 'Cannot enroll in courses from other tenants' });
         }
 
+        // Clean up students array by removing null values
+        course.students = course.students.filter(studentId => studentId !== null);
+        console.log('Cleaned students array:', course.students);
+
         if (course.students.includes(req.user._id)) {
-            return res.status(400).json({ error: 'Already enrolled in this course' });
+            console.log('Student already enrolled:', {
+                userId: req.user._id,
+                enrolledStudents: course.students
+            });
+            return res.status(400).json({ success: false, error: 'Already enrolled in this course' });
         }
 
         course.students.push(req.user._id);
         await course.save();
+        console.log('Successfully enrolled student in course');
 
-        res.json({ message: 'Successfully enrolled in course' });
+        res.json({ success: true, message: 'Successfully enrolled in course' });
     } catch (error) {
         console.error('Error enrolling in course:', error);
-        res.status(500).json({ error: 'Failed to enroll in course' });
+        res.status(500).json({ success: false, error: 'Failed to enroll in course' });
     }
 });
 
 // Unenroll from a course
 router.post('/courses/:courseId/unenroll', async (req, res) => {
+    console.log('Unenroll request received:', {
+        courseId: req.params.courseId,
+        userId: req.user._id,
+        tenant: req.tenant
+    });
+    
     try {
         const course = await Course.findOne({
             _id: req.params.courseId,
-            tenant: req.tenant,
-            students: req.user._id
+            tenant: req.tenant
         });
 
+        console.log('Found course:', course);
+
         if (!course) {
-            return res.status(404).json({ error: 'Course not found or not enrolled' });
+            console.log('Course not found');
+            return res.status(404).json({ success: false, error: 'Course not found' });
+        }
+
+        // Verify course belongs to student's tenant
+        if (course.tenant !== req.tenant) {
+            console.log('Tenant mismatch:', {
+                courseTenant: course.tenant,
+                userTenant: req.tenant
+            });
+            return res.status(403).json({ success: false, error: 'Cannot unenroll from courses in other tenants' });
+        }
+
+        // Clean up students array by removing null values
+        course.students = course.students.filter(studentId => studentId !== null);
+        console.log('Cleaned students array:', course.students);
+
+        if (!course.students.includes(req.user._id)) {
+            console.log('Student not enrolled:', {
+                userId: req.user._id,
+                enrolledStudents: course.students
+            });
+            return res.status(400).json({ success: false, error: 'Not enrolled in this course' });
         }
 
         // Remove student from course
         course.students = course.students.filter(studentId => studentId.toString() !== req.user._id.toString());
         await course.save();
+        console.log('Successfully unenrolled student from course');
 
-        res.json({ message: 'Successfully unenrolled from course' });
+        res.json({ success: true, message: 'Successfully unenrolled from course' });
     } catch (error) {
         console.error('Error unenrolling from course:', error);
-        res.status(500).json({ error: 'Failed to unenroll from course' });
+        res.status(500).json({ success: false, error: 'Failed to unenroll from course' });
     }
 });
 
@@ -259,47 +339,12 @@ router.put('/profile', async (req, res) => {
     }
 });
 
-// Get student logs
-router.get('/logs', async (req, res) => {
-    console.log('GET /logs - Request received:', {
-        user: req.user,
-        tenant: req.tenant
-    });
-    
-    try {
-        const student = await User.findOne({ 
-            _id: req.user.userId,
-            tenant: req.tenant
-        });
-        console.log('Found student:', student);
-        
-        if (!student) {
-            console.log('Student not found');
-            return res.status(404).json({ success: false, error: 'Student not found' });
-        }
-
-        const logs = await Log.find({
-            studentId: student.uvuId,
-            tenant: req.tenant,
-            createdBy: req.user.userId  // Only return logs created by this student
-        })
-        .populate('createdBy', 'username')
-        .sort({ createdAt: -1 });
-
-        console.log('Found logs:', logs);
-        res.json(logs);
-    } catch (error) {
-        console.error('Error fetching student logs:', error);
-        res.status(500).json({ error: 'Failed to fetch student logs' });
-    }
-});
-
-// Create log entry for a course
+// Add log entry for a course
 router.post('/courses/:courseId/logs', async (req, res) => {
     console.log('POST /courses/:courseId/logs - Request received:', {
+        courseId: req.params.courseId,
         user: req.user,
         tenant: req.tenant,
-        courseId: req.params.courseId,
         body: req.body
     });
     
@@ -307,29 +352,29 @@ router.post('/courses/:courseId/logs', async (req, res) => {
         // Verify student is enrolled in the course
         const course = await Course.findOne({
             _id: req.params.courseId,
-            students: req.user.userId,
+            students: req.user._id,
             tenant: req.tenant
         });
 
         if (!course) {
             console.log('Course not found or student not enrolled');
-            return res.status(404).json({ success: false, error: 'Course not found or you are not enrolled' });
+            return res.status(404).json({ error: 'Course not found or you are not enrolled' });
         }
 
         const log = new Log({
-            studentId: req.user.userId,
-            courseId: req.params.courseId,
             content: req.body.content,
-            tenant: req.tenant,
-            createdBy: req.user.userId
+            courseId: new mongoose.Types.ObjectId(req.params.courseId),
+            studentId: new mongoose.Types.ObjectId(req.user._id),
+            createdBy: new mongoose.Types.ObjectId(req.user._id),
+            tenant: req.tenant
         });
 
         await log.save();
         console.log('Log created successfully:', log);
-        res.json({ success: true, data: log });
+        res.json(log);
     } catch (error) {
         console.error('Error creating log:', error);
-        res.status(500).json({ success: false, error: 'Failed to create log' });
+        res.status(500).json({ error: 'Failed to create log' });
     }
 });
 

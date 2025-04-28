@@ -46,10 +46,9 @@ const Logs = {
             logList.append(`
                 <div class="log-item mb-3 p-3 border rounded">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5>Course ID: ${log.courseId}</h5>
+                        <h5>${log.content}</h5>
                         <small class="text-muted">${new Date(log.createdAt).toLocaleString()}</small>
                     </div>
-                    <p class="mb-1">${log.content}</p>
                     <small class="text-muted">Created by: ${log.createdBy?.username || 'Unknown'}</small>
                 </div>
             `);
@@ -57,30 +56,25 @@ const Logs = {
     },
 
     // Add new log
-    addLog: async function(courseId, logData) {
+    addLog: async function(courseId, content) {
         if (window.DEBUG) console.log('Adding log for course:', courseId);
         try {
             const response = await $.ajax({
-                url: `/${window.currentTenant}/admin/api/courses/${courseId}/logs`,
+                url: `/${window.currentTenant}/student/courses/${courseId}/logs`,
                 method: 'POST',
-                data: logData,
+                contentType: 'application/json',
+                data: JSON.stringify({ content }),
                 xhrFields: {
                     withCredentials: true
                 }
             });
             
-            if (response.success) {
-                this.loadLogs(courseId);
-                UI.showSuccess('Log added successfully!');
-                return true;
-            } else {
-                console.error('Error adding log:', response.error);
-                UI.showError(response.error || 'Failed to add log.');
-                return false;
-            }
+            this.loadLogs(courseId);
+            UI.showSuccess('Log added successfully!');
+            return true;
         } catch (error) {
             console.error('Error adding log:', error);
-            UI.showError('Failed to add log. Please try again.');
+            UI.showError(error.responseJSON?.error || 'Failed to add log. Please try again.');
             return false;
         }
     },
@@ -120,12 +114,14 @@ const Logs = {
         $('#addLogForm').on('submit', async (e) => {
             e.preventDefault();
             const courseId = $('#courseId').val();
-            const logData = {
-                studentId: $('#studentId').val(),
-                content: $('#logContent').val()
-            };
+            const content = $('#logContent').val();
             
-            if (await this.addLog(courseId, logData)) {
+            if (!courseId || !content) {
+                UI.showError('Please select a course and enter log content');
+                return;
+            }
+            
+            if (await this.addLog(courseId, content)) {
                 $('#addLogForm')[0].reset();
                 $('#addLogModal').modal('hide');
             }

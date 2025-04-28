@@ -24,9 +24,8 @@ const userSchema = new mongoose.Schema({
     },
     uvuId: {
         type: String,
-        unique: true,
-        sparse: true,
-        trim: true
+        trim: true,
+        default: undefined
     },
     tenant: {
         type: String,

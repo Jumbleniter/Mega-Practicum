@@ -62,18 +62,19 @@
   <script src="/js/courses.js"></script>
   <script src="/js/logs.js"></script>
   <script src="/js/ui.js"></script>
+  <script src="/js/studentClient.js"></script>
   <script>
     $(document).ready(function() {
-      // Initialize course handlers
-      Courses.initializeCourseHandlers();
+      // Initialize student handlers
+      Student.initializeHandlers();
       
       // Check authentication status and load data
       Auth.checkLoginStatus().then(data => {
         if (data.authenticated) {
           window.currentUser = data.user;
           // Load initial data
-          Courses.loadAvailableCourses();
-          Courses.loadEnrolledCourses();
+          Student.loadAvailableCourses();
+          Student.loadEnrolledCourses();
           Logs.loadLogs();
         } else {
           window.location.href = `/${window.currentTenant}`;

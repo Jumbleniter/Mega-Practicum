@@ -51,21 +51,84 @@ router.get('/dashboard', async (req, res) => {
 // User management routes
 router.post('/users', async (req, res) => {
   try {
-    const { username, password, role, email } = req.body;
+    const { username, password, role, uvuId } = req.body;
 
+    // Validate required fields
+    if (!username || !password || !role) {
+      return res.status(400).json({ success: false, error: 'Username, password, and role are required' });
+    }
+
+    // Check if username already exists
+    const existingUser = await User.findOne({ username, tenant: req.tenant });
+    if (existingUser) {
+      return res.status(400).json({ success: false, error: 'Username already exists' });
+    }
+
+    // For teachers, automatically assign a teacher ID
+    let assignedUvuId = uvuId;
+    if (role === 'teacher') {
+      // Find the highest teacher ID for this tenant
+      const lastTeacher = await User.findOne({ 
+        role: 'teacher', 
+        tenant: req.tenant,
+        uvuId: { $regex: '^T\\d+$' }
+      }).sort({ uvuId: -1 });
+
+      let nextNumber = 1;
+      if (lastTeacher && lastTeacher.uvuId) {
+        nextNumber = parseInt(lastTeacher.uvuId.substring(1)) + 1;
+      }
+
+      // Keep trying until we find an unused ID
+      let attempts = 0;
+      while (attempts < 100) { // Prevent infinite loop
+        assignedUvuId = `T${nextNumber.toString().padStart(3, '0')}`;
+        
+        // Check if this ID is already used in this tenant
+        const existingUser = await User.findOne({ 
+          uvuId: assignedUvuId,
+          tenant: req.tenant
+        });
+
+        if (!existingUser) {
+          break; // Found an unused ID
+        }
+
+        nextNumber++;
+        attempts++;
+      }
+
+      if (attempts >= 100) {
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Could not generate a unique teacher ID' 
+        });
+      }
+    }
+
+    // Create new user
     const newUser = new User({
       username,
-      password,
+      password, // Password will be hashed by the User model's pre-save middleware
       role,
-      email,
+      uvuId: assignedUvuId,
       tenant: req.tenant
     });
 
     await newUser.save();
-    res.status(201).json(newUser);
+    res.status(201).json({
+      success: true,
+      data: {
+        id: newUser._id,
+        username: newUser.username,
+        role: newUser.role,
+        tenant: newUser.tenant,
+        uvuId: newUser.uvuId
+      }
+    });
   } catch (error) {
     console.error('Create user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

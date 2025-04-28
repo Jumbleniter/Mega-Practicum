@@ -60,6 +60,34 @@ router.get('/student', checkRole('student'), async (req, res) => {
     }
 });
 
+// Get available courses for student
+router.get('/available', checkRole('student'), async (req, res) => {
+    try {
+        const courses = await Course.find({ 
+            tenant: req.tenant,
+            students: { $ne: req.user.userId }
+        });
+        res.json(courses);
+    } catch (error) {
+        console.error('Error fetching available courses:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get enrolled courses for student
+router.get('/enrolled', checkRole('student'), async (req, res) => {
+    try {
+        const courses = await Course.find({ 
+            tenant: req.tenant,
+            students: req.user.userId 
+        });
+        res.json(courses);
+    } catch (error) {
+        console.error('Error fetching enrolled courses:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Create new course (admin and teacher only)
 router.post('/', checkRole(['admin', 'teacher']), async (req, res) => {
     try {

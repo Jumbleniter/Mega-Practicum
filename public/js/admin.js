@@ -89,20 +89,56 @@ const Admin = {
                     `);
                 });
 
-                // Populate course dropdowns
-                const $courseSelect = $('#courseSelect');
-                const $taCourseSelect = $('#taCourseSelect');
-                const $studentCourseSelect = $('#studentCourseSelect');
+                // Populate course dropdowns with filtered options
+                const $courseSelect = $('#courseSelect'); // For teacher assignment
+                const $taCourseSelect = $('#taCourseSelect'); // For TA assignment
+                const $studentCourseSelect = $('#studentCourseSelect'); // For student enrollment
                 
-                [$courseSelect, $taCourseSelect, $studentCourseSelect].forEach($select => {
-                    $select.empty().append('<option value="">Choose Course</option>');
-                    courses.forEach(course => {
-                        $select.append(`
+                // Filter courses for teacher assignment (only show courses without teachers)
+                const coursesWithoutTeachers = courses.filter(course => !course.teacher);
+                $courseSelect.empty().append('<option value="">Choose Course</option>');
+                coursesWithoutTeachers.forEach(course => {
+                    $courseSelect.append(`
+                        <option value="${course._id}">
+                            ${course.display || course.name} (${course.courseId || 'No ID'})
+                        </option>
+                    `);
+                });
+
+                // Filter courses for student enrollment (only show courses where student is not enrolled)
+                const $studentSelect = $('#studentSelect');
+                const selectedStudentId = $studentSelect.val();
+                if (selectedStudentId) {
+                    const coursesWithoutStudent = courses.filter(course => 
+                        !course.students.some(student => student._id === selectedStudentId)
+                    );
+                    $studentCourseSelect.empty().append('<option value="">Choose Course</option>');
+                    coursesWithoutStudent.forEach(course => {
+                        $studentCourseSelect.append(`
                             <option value="${course._id}">
                                 ${course.display || course.name} (${course.courseId || 'No ID'})
                             </option>
                         `);
                     });
+                } else {
+                    $studentCourseSelect.empty().append('<option value="">Choose Course</option>');
+                    courses.forEach(course => {
+                        $studentCourseSelect.append(`
+                            <option value="${course._id}">
+                                ${course.display || course.name} (${course.courseId || 'No ID'})
+                            </option>
+                        `);
+                    });
+                }
+
+                // All courses available for TA assignment
+                $taCourseSelect.empty().append('<option value="">Choose Course</option>');
+                courses.forEach(course => {
+                    $taCourseSelect.append(`
+                        <option value="${course._id}">
+                            ${course.display || course.name} (${course.courseId || 'No ID'})
+                        </option>
+                    `);
                 });
             })
             .fail(function(error) {
@@ -217,6 +253,11 @@ const Admin = {
             this.createUser('student');
         });
 
+        // Update student course dropdown when student is selected
+        $('#studentSelect').on('change', function() {
+            Admin.loadCourses(); // This will now filter courses based on selected student
+        });
+
         // Assign teacher form submission
         $('#assignTeacherForm').on('submit', (e) => {
             e.preventDefault();
@@ -229,7 +270,7 @@ const Admin = {
                 data: { teacherId },
                 success: (response) => {
                     UI.showSuccess('Teacher assigned successfully!');
-                    this.loadCourses();
+                    Admin.loadCourses();
                 },
                 error: (error) => {
                     console.error('Error assigning teacher:', error);
@@ -250,7 +291,7 @@ const Admin = {
                 data: { taId },
                 success: (response) => {
                     UI.showSuccess('TA assigned successfully!');
-                    this.loadCourses();
+                    Admin.loadCourses();
                 },
                 error: (error) => {
                     console.error('Error assigning TA:', error);
@@ -271,7 +312,7 @@ const Admin = {
                 data: { studentId },
                 success: (response) => {
                     UI.showSuccess('Student added successfully!');
-                    this.loadCourses();
+                    Admin.loadCourses();
                 },
                 error: (error) => {
                     console.error('Error adding student:', error);
@@ -288,6 +329,14 @@ const Admin = {
         const password = $(`${formId} #${role}Password`).val();
         const uvuId = role === 'student' ? $(`${formId} #studentUVUId`).val() : null;
 
+        console.log('Creating user with data:', {
+            username,
+            password,
+            role,
+            uvuId,
+            formId
+        });
+
         if (!username || !password) {
             alert('Username and password are required');
             return;
@@ -296,19 +345,28 @@ const Admin = {
         $.ajax({
             url: `/${window.currentTenant}/admin/users`,
             method: 'POST',
-            data: {
+            contentType: 'application/json',
+            data: JSON.stringify({
                 username,
                 password,
                 role,
                 uvuId
-            },
+            }),
             success: (response) => {
+                console.log('Create user success:', response);
                 UI.showSuccess(`${role} created successfully!`);
                 $(formId)[0].reset();
                 this.loadUsers(); // Reload user lists
             },
             error: (error) => {
                 console.error(`Error creating ${role}:`, error);
+                console.error('Error response:', error.responseJSON);
+                console.error('Request data:', {
+                    username,
+                    password,
+                    role,
+                    uvuId
+                });
                 UI.showError(`Failed to create ${role}. Please try again.`);
             }
         });
