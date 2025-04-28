@@ -8,14 +8,14 @@ window.TENANTS = {
   uvu: {
     name: 'UVU',
     theme: {
-      primaryColor: '#0056b3',
-      secondaryColor: '#e31837',
-      accentColor: '#000000',
+      primaryColor: '#006633',
+      secondaryColor: '#006633',
+      accentColor: '#006633',
       textColor: '#333333',
       backgroundColor: '#ffffff',
-      buttonColor: '#0056b3',
+      buttonColor: '#006633',
       buttonTextColor: '#ffffff',
-      headerColor: '#0056b3',
+      headerColor: '#006633',
       headerTextColor: '#ffffff'
     }
   },
@@ -23,7 +23,7 @@ window.TENANTS = {
     name: 'UofU',
     theme: {
       primaryColor: '#CC0000',
-      secondaryColor: '#000000',
+      secondaryColor: '#CC0000',
       accentColor: '#CC0000',
       textColor: '#333333',
       backgroundColor: '#ffffff',
@@ -46,7 +46,22 @@ function handleRoute() {
   if (tenant && (tenant === 'uvu' || tenant === 'uofu')) {
     window.currentTenant = tenant;
     if (window.DEBUG) console.log('Current tenant from URL:', window.currentTenant);
+    applyTenantTheme(tenant);
   }
+}
+
+// Apply tenant-specific theme
+function applyTenantTheme(tenant) {
+  const theme = window.TENANTS[tenant].theme;
+  document.documentElement.style.setProperty('--primary-color', theme.primaryColor);
+  document.documentElement.style.setProperty('--secondary-color', theme.secondaryColor);
+  document.documentElement.style.setProperty('--accent-color', theme.accentColor);
+  document.documentElement.style.setProperty('--text-color', theme.textColor);
+  document.documentElement.style.setProperty('--background-color', theme.backgroundColor);
+  document.documentElement.style.setProperty('--button-color', theme.buttonColor);
+  document.documentElement.style.setProperty('--button-text-color', theme.buttonTextColor);
+  document.documentElement.style.setProperty('--header-color', theme.headerColor);
+  document.documentElement.style.setProperty('--header-text-color', theme.headerTextColor);
 }
 
 $(document).ready(function() {
@@ -61,10 +76,8 @@ $(document).ready(function() {
   if (window.DEBUG) console.log('Current tenant:', window.currentTenant);
   if (window.DEBUG) console.log('Current path:', window.location.pathname);
 
-  // Initialize UI handlers if we're on the login page
-  if (window.location.pathname.includes('/uvu') || window.location.pathname.includes('/uofu')) {
-    UI.initializeUIHandlers();
-  }
+  // Apply initial theme
+  handleRoute();
 });
 
 // Helper function to get current tenant

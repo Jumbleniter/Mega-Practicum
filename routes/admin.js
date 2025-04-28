@@ -107,29 +107,30 @@ router.delete('/users/:id', async (req, res) => {
 // Get all courses
 router.get('/courses', async (req, res) => {
     try {
-        const courses = await Course.find({ tenant: req.tenant })
+        const tenant = req.tenant;
+        const courses = await Course.find({ tenant })
             .populate('teacher', 'username')
             .populate('tas', 'username')
             .populate('students', 'username uvuId');
-        res.json(courses);
+        res.json({ success: true, data: courses });
     } catch (error) {
         console.error('Error fetching courses:', error);
-        res.status(500).json({ error: 'Failed to fetch courses' });
+        res.status(500).json({ success: false, error: 'Failed to fetch courses' });
     }
 });
 
 // Get all logs
 router.get('/logs', async (req, res) => {
     try {
-        const logs = await Log.find({ tenant: req.tenant })
-            .populate('course', 'name')
-            .populate('student', 'username uvuId')
+        const tenant = req.tenant;
+        const logs = await Log.find({ tenant })
+            .populate('courseId', 'courseId display')
             .populate('createdBy', 'username')
-            .sort({ date: -1 });
-        res.json(logs);
+            .sort({ createdAt: -1 });
+        res.json({ success: true, data: logs });
     } catch (error) {
         console.error('Error fetching logs:', error);
-        res.status(500).json({ error: 'Failed to fetch logs' });
+        res.status(500).json({ success: false, error: 'Failed to fetch logs' });
     }
 });
 

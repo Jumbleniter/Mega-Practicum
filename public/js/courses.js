@@ -1,18 +1,27 @@
 'use strict';
 
 const Courses = {
-    // Load courses into dropdown
+    // Load courses for the current user
     loadCourses: async function() {
         if (window.DEBUG) console.log('Loading courses for tenant:', window.currentTenant);
         try {
-            const response = await TenantClient.makeRequest(`/${window.currentTenant}/courses`, 'GET');
+            const response = await $.ajax({
+                url: `/${window.currentTenant}/admin/api/courses`,
+                method: 'GET',
+                xhrFields: {
+                    withCredentials: true
+                }
+            });
+            
             if (response.success) {
                 this.displayCourses(response.data);
             } else {
                 console.error('Error loading courses:', response.error);
+                UI.showError('Failed to load courses. Please try again.');
             }
         } catch (error) {
             console.error('Error loading courses:', error);
+            UI.showError('Failed to load courses. Please try again.');
         }
     },
 
@@ -20,12 +29,21 @@ const Courses = {
         const courseList = $('#courseList');
         courseList.empty();
         
+        if (courses.length === 0) {
+            courseList.append('<div class="alert alert-info">No courses found.</div>');
+            return;
+        }
+
         courses.forEach(course => {
             courseList.append(`
                 <div class="course-item">
-                    <h3>${course.name}</h3>
-                    <p>${course.description}</p>
-                    <button class="view-logs" data-course-id="${course._id}">View Logs</button>
+                    <h4>${course.display}</h4>
+                    <p><strong>Course ID:</strong> ${course.courseId}</p>
+                    <p><strong>Description:</strong> ${course.description}</p>
+                    <p><strong>Teacher:</strong> ${course.teacher?.username || 'Not assigned'}</p>
+                    <p><strong>Students:</strong> ${course.students?.length || 0}</p>
+                    <p><strong>TAs:</strong> ${course.tas?.length || 0}</p>
+                    <button class="btn btn-primary view-logs" data-course-id="${course._id}">View Logs</button>
                 </div>
             `);
         });
@@ -102,16 +120,27 @@ const Courses = {
     addNewCourse: async function(courseData) {
         if (window.DEBUG) console.log('Adding new course:', courseData);
         try {
-            const response = await TenantClient.makeRequest(`/${window.currentTenant}/courses`, 'POST', courseData);
+            const response = await $.ajax({
+                url: `/${window.currentTenant}/admin/api/courses`,
+                method: 'POST',
+                data: courseData,
+                xhrFields: {
+                    withCredentials: true
+                }
+            });
+            
             if (response.success) {
                 this.loadCourses();
+                UI.showSuccess('Course created successfully!');
                 return true;
             } else {
                 console.error('Error adding course:', response.error);
+                UI.showError(response.error || 'Failed to create course.');
                 return false;
             }
         } catch (error) {
             console.error('Error adding course:', error);
+            UI.showError('Failed to create course. Please try again.');
             return false;
         }
     },
@@ -150,14 +179,15 @@ const Courses = {
         // Handle view logs button clicks
         $(document).on('click', '.view-logs', (e) => {
             const courseId = $(e.target).data('course-id');
-            this.loadTACourseLogs(courseId);
+            Logs.loadLogs(courseId);
         });
 
         // Handle new course form submission
         $('#newCourseForm').on('submit', async (e) => {
             e.preventDefault();
             const courseData = {
-                name: $('#courseName').val(),
+                courseId: $('#courseId').val(),
+                display: $('#courseName').val(),
                 description: $('#courseDescription').val()
             };
             

@@ -11,13 +11,12 @@
   <!-- Custom CSS -->
   <style>
     :root {
-      --primary-color: #0056b3;
-      --secondary-color: #e31837;
-      --accent-color: #000000;
+      --uvu-primary: #006633;
+      --uvu-secondary: #e31837;
+      --uofu-primary: #CC0000;
+      --uofu-secondary: #000000;
       --text-color: #333333;
       --background-color: #ffffff;
-      --button-color: var(--primary-color);
-      --header-color: var(--primary-color);
     }
 
     body {
@@ -42,6 +41,28 @@
       align-items: center;
       justify-content: center;
     }
+
+    #uvuButton {
+      background-color: var(--uvu-primary);
+      border-color: var(--uvu-primary);
+      color: white;
+    }
+
+    #uofuButton {
+      background-color: var(--uofu-primary);
+      border-color: var(--uofu-primary);
+      color: white;
+    }
+
+    #uvuButton:hover {
+      background-color: var(--uvu-secondary);
+      border-color: var(--uvu-secondary);
+    }
+
+    #uofuButton:hover {
+      background-color: var(--uofu-secondary);
+      border-color: var(--uofu-secondary);
+    }
   </style>
 
   <!-- jQuery (CDN with Local Fallback) -->
@@ -59,10 +80,10 @@
     <div class="tenant-container">
       <h1 class="mb-4">Select Your Institution</h1>
       <div class="d-flex justify-content-center">
-        <button id="uvuButton" class="btn btn-primary tenant-button">
+        <button id="uvuButton" class="btn tenant-button">
           UVU
         </button>
-        <button id="uofuButton" class="btn btn-danger tenant-button">
+        <button id="uofuButton" class="btn tenant-button">
           UofU
         </button>
       </div>

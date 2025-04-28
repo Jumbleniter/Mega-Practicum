@@ -50,11 +50,21 @@ const Auth = {
                     window.location.href = `/${window.currentTenant}/student`;
                 }
             } else {
-                UI.showError(response.message || 'Login failed');
+                if (window.UI) {
+                    window.UI.showError(response.message || 'Login failed');
+                } else {
+                    $('#errorMessage .message').text(response.message || 'Login failed');
+                    $('#errorMessage').show();
+                }
             }
         } catch (error) {
             console.error('Login error:', error);
-            UI.showError('Login failed. Please try again.');
+            if (window.UI) {
+                window.UI.showError('Login failed. Please try again.');
+            } else {
+                $('#errorMessage .message').text('Login failed. Please try again.');
+                $('#errorMessage').show();
+            }
         }
     },
 
@@ -74,7 +84,12 @@ const Auth = {
             },
             error: function(xhr, status, error) {
                 console.error('Logout error:', xhr);
-                UI.showError('Logout failed. Please try again.');
+                if (window.UI) {
+                    window.UI.showError('Logout failed. Please try again.');
+                } else {
+                    $('#errorMessage .message').text('Logout failed. Please try again.');
+                    $('#errorMessage').show();
+                }
             }
         });
     },
@@ -156,37 +171,60 @@ const Auth = {
             if (data.authenticated) {
                 if (window.DEBUG) console.log('User is authenticated:', data.user);
                 window.currentUser = data.user;
-                // Redirect to appropriate page based on role
-                if (data.user.role === 'admin') {
-                    window.location.href = `/${window.currentTenant}/admin`;
-                } else if (data.user.role === 'teacher') {
-                    window.location.href = `/${window.currentTenant}/teacher`;
-                } else if (data.user.role === 'ta') {
-                    window.location.href = `/${window.currentTenant}/ta`;
-                } else if (data.user.role === 'student') {
-                    window.location.href = `/${window.currentTenant}/student`;
+                
+                // Get current path
+                const currentPath = window.location.pathname;
+                const expectedPath = `/${window.currentTenant}/${data.user.role}`;
+                
+                // Only redirect if we're not already on the correct page
+                if (!currentPath.startsWith(expectedPath)) {
+                    // Redirect to appropriate page based on role
+                    if (data.user.role === 'admin') {
+                        window.location.href = `/${window.currentTenant}/admin`;
+                    } else if (data.user.role === 'teacher') {
+                        window.location.href = `/${window.currentTenant}/teacher`;
+                    } else if (data.user.role === 'ta') {
+                        window.location.href = `/${window.currentTenant}/ta`;
+                    } else if (data.user.role === 'student') {
+                        window.location.href = `/${window.currentTenant}/student`;
+                    }
                 }
             } else {
                 if (window.DEBUG) console.log('User is not authenticated');
-                UI.showLogin();
+                if (window.UI) {
+                    window.UI.showLogin();
+                } else {
+                    $('#loginForm').show();
+                    $('#signupForm').hide();
+                }
             }
         }).catch(error => {
             console.error('Error checking login status:', error);
-            UI.showLogin();
+            if (window.UI) {
+                window.UI.showLogin();
+            } else {
+                $('#loginForm').show();
+                $('#signupForm').hide();
+            }
         });
 
         // Login form handler
         $('#loginFormElement').off('submit').on('submit', (e) => this.handleLogin(e));
 
         // Logout handler
-        $('#logoutBtn').off('click').on('click', async () => {
+        $('#logoutButton').off('click').on('click', async () => {
             try {
                 await this.logout();
                 window.currentUser = null;
                 window.location.href = `/${window.currentTenant}`;
             } catch (error) {
                 console.error('Logout error:', error);
-                UI.showError('Logout failed. Please try again.');
+                if (window.UI) {
+                    window.UI.showError('Logout failed. Please try again.');
+                } else {
+                    $('#errorMessage .message').text('Logout failed. Please try again.');
+                    $('#errorMessage').show();
+                }
             }
         });
     },
@@ -229,4 +267,14 @@ const Auth = {
 };
 
 // Make Auth globally available
-window.Auth = Auth; 
+window.Auth = Auth;
+
+// Initialize auth handlers when the page loads
+$(document).ready(function() {
+    // Get tenant from URL
+    const pathParts = window.location.pathname.split('/');
+    window.currentTenant = pathParts[1];
+    
+    // Initialize auth handlers
+    Auth.initializeAuthHandlers();
+}); 

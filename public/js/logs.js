@@ -1,12 +1,16 @@
 'use strict';
 
 const Logs = {
-    // Load logs for a course
-    loadLogs: async function(courseId) {
-        if (window.DEBUG) console.log('Loading logs for course:', courseId);
+    // Load all logs for the current user
+    loadLogs: async function(courseId = null) {
+        if (window.DEBUG) console.log('Loading logs for tenant:', window.currentTenant);
         try {
+            const url = courseId 
+                ? `/${window.currentTenant}/admin/api/courses/${courseId}/logs`
+                : `/${window.currentTenant}/admin/api/logs`;
+            
             const response = await $.ajax({
-                url: `/${window.currentTenant}/courses/${courseId}/logs`,
+                url: url,
                 method: 'GET',
                 xhrFields: {
                     withCredentials: true
@@ -17,9 +21,11 @@ const Logs = {
                 this.displayLogs(response.data);
             } else {
                 console.error('Error loading logs:', response.error);
+                UI.showError('Failed to load logs. Please try again.');
             }
         } catch (error) {
             console.error('Error loading logs:', error);
+            UI.showError('Failed to load logs. Please try again.');
         }
     },
 
@@ -28,20 +34,19 @@ const Logs = {
         logList.empty();
         
         if (logs.length === 0) {
-            logList.append('<div class="alert alert-info">No logs found for this course.</div>');
+            logList.append('<div class="alert alert-info">No logs found.</div>');
             return;
         }
 
         logs.forEach(log => {
             logList.append(`
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h5 class="card-title">${log.studentName}</h5>
-                        <small class="text-muted">${new Date(log.date).toLocaleString()}</small>
+                <div class="log-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5>${log.studentId}</h5>
+                        <small class="text-muted">${new Date(log.createdAt).toLocaleString()}</small>
                     </div>
-                    <div class="card-body">
-                        <p class="card-text">${log.content}</p>
-                    </div>
+                    <p class="mb-1">${log.content}</p>
+                    <small class="text-muted">Created by: ${log.createdBy?.username || 'Unknown'}</small>
                 </div>
             `);
         });
@@ -52,7 +57,7 @@ const Logs = {
         if (window.DEBUG) console.log('Adding log for course:', courseId);
         try {
             const response = await $.ajax({
-                url: `/${window.currentTenant}/courses/${courseId}/logs`,
+                url: `/${window.currentTenant}/admin/api/courses/${courseId}/logs`,
                 method: 'POST',
                 data: logData,
                 xhrFields: {
@@ -62,46 +67,46 @@ const Logs = {
             
             if (response.success) {
                 this.loadLogs(courseId);
+                UI.showSuccess('Log added successfully!');
                 return true;
             } else {
                 console.error('Error adding log:', response.error);
+                UI.showError(response.error || 'Failed to add log.');
                 return false;
             }
         } catch (error) {
             console.error('Error adding log:', error);
+            UI.showError('Failed to add log. Please try again.');
             return false;
         }
     },
 
     // Delete log
-    deleteLog: function(logId, courseId) {
-        if (DEBUG.LOG_MANAGEMENT) {
-            console.log('Deleting log:', logId);
-        }
-        
-        $.ajax({
-            url: `${BASE_URL}/${currentTenant}/logs/${logId}`,
-            method: "DELETE",
-            headers: {
-                'X-Tenant': currentTenant
-            },
-            xhrFields: {
-                withCredentials: true
-            },
-            success: function() {
-                if (DEBUG.LOG_MANAGEMENT) {
-                    console.log('Log deleted successfully');
+    deleteLog: async function(logId, courseId) {
+        if (window.DEBUG) console.log('Deleting log:', logId);
+        try {
+            const response = await $.ajax({
+                url: `/${window.currentTenant}/admin/api/logs/${logId}`,
+                method: 'DELETE',
+                xhrFields: {
+                    withCredentials: true
                 }
-                UI.showSuccess("Log deleted successfully!");
-                Logs.loadLogs(courseId);
-            },
-            error: function(xhr) {
-                if (DEBUG.LOG_MANAGEMENT) {
-                    console.error('Failed to delete log:', xhr);
-                }
-                UI.showError(xhr.responseJSON?.error || "Failed to delete log. Please try again.");
+            });
+            
+            if (response.success) {
+                this.loadLogs(courseId);
+                UI.showSuccess('Log deleted successfully!');
+                return true;
+            } else {
+                console.error('Error deleting log:', response.error);
+                UI.showError(response.error || 'Failed to delete log.');
+                return false;
             }
-        });
+        } catch (error) {
+            console.error('Error deleting log:', error);
+            UI.showError('Failed to delete log. Please try again.');
+            return false;
+        }
     },
 
     initializeLogHandlers: function() {
@@ -112,7 +117,7 @@ const Logs = {
             e.preventDefault();
             const courseId = $('#courseId').val();
             const logData = {
-                studentName: $('#studentName').val(),
+                studentId: $('#studentId').val(),
                 content: $('#logContent').val()
             };
             
