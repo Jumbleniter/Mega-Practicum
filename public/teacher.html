@@ -103,7 +103,7 @@
           <form id="createTAForm">
             <div class="mb-3">
               <label for="taUsername" class="form-label">Username</label>
-              <input type="text" class="form-control" id="taUsername" required>
+              <input type="text" class="form-control" id="taUsername" autocomplete="username" required>
             </div>
             <div class="mb-3">
               <label for="taPassword" class="form-label">Password</label>
@@ -122,7 +122,7 @@
           <form id="addStudentForm">
             <div class="mb-3">
               <label for="studentUsername" class="form-label">Username</label>
-              <input type="text" class="form-control" id="studentUsername" required>
+              <input type="text" class="form-control" id="studentUsername" autocomplete="username" required>
             </div>
             <div class="mb-3">
               <label for="studentPassword" class="form-label">Password</label>
@@ -153,6 +153,19 @@
           <h3>Course Logs</h3>
         </div>
         <div class="card-body">
+          <form id="addLogForm" class="mb-4">
+            <div class="mb-3">
+              <label for="logCourseSelect" class="form-label">Select Course</label>
+              <select class="form-control" id="logCourseSelect" required>
+                <option value="">Choose a course</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="logContent" class="form-label">Log Content</label>
+              <textarea class="form-control" id="logContent" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Log Entry</button>
+          </form>
           <div id="logList">
             <!-- Logs will be loaded here -->
           </div>

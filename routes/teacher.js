@@ -165,6 +165,57 @@ router.get('/courses/:courseId/logs', async (req, res) => {
     }
 });
 
+// Create course log
+router.post('/courses/:courseId/logs', async (req, res) => {
+    try {
+        console.log('Creating log with data:', {
+            courseId: req.params.courseId,
+            content: req.body.content,
+            tenant: req.tenant,
+            createdBy: req.user.userId
+        });
+
+        const course = await Course.findOne({
+            _id: req.params.courseId,
+            teacher: req.user.userId,
+            tenant: req.tenant
+        });
+
+        if (!course) {
+            console.log('Course not found:', req.params.courseId);
+            return res.status(404).json({ error: 'Course not found' });
+        }
+
+        if (!req.body.content) {
+            console.log('Missing content in request body');
+            return res.status(400).json({ error: 'Log content is required' });
+        }
+
+        const log = new Log({
+            content: req.body.content,
+            courseId: req.params.courseId,
+            tenant: req.tenant,
+            createdBy: req.user.userId,
+            studentId: 'teacher'
+        });
+
+        const savedLog = await log.save();
+        console.log('Log created successfully:', savedLog);
+        
+        // Populate the createdBy field before sending response
+        const populatedLog = await Log.findById(savedLog._id)
+            .populate('createdBy', 'username');
+            
+        res.status(201).json(populatedLog);
+    } catch (error) {
+        console.error('Error creating log:', error);
+        res.status(500).json({ 
+            error: 'Failed to create log',
+            details: error.message 
+        });
+    }
+});
+
 // Get all logs for all courses
 router.get('/logs', async (req, res) => {
     try {

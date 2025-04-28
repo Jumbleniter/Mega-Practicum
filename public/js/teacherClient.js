@@ -32,6 +32,20 @@ const Teacher = {
             Teacher.createStudent(studentData);
         });
 
+        // Initialize log creation form
+        $('#addLogForm').on('submit', function(e) {
+            e.preventDefault();
+            const courseId = $('#logCourseSelect').val();
+            const content = $('#logContent').val();
+            
+            if (!courseId || !content) {
+                UI.showError('Please select a course and enter log content');
+                return;
+            }
+
+            Teacher.createLog(courseId, content);
+        });
+
         // Initialize logout button
         $('#logoutButton').on('click', function() {
             Auth.logout();
@@ -39,23 +53,69 @@ const Teacher = {
     },
 
     loadDashboard: function() {
+        console.log('Loading teacher dashboard...');
         $.ajax({
-            url: `/${window.currentTenant}/teacher`,
+            url: `/${window.currentTenant}/teacher/courses`,
             method: 'GET',
             success: function(response) {
-                Teacher.displayCourses(response.courses || []);
+                console.log('Courses response:', response);
+                if (Array.isArray(response)) {
+                    Teacher.displayCourses(response);
+                    Teacher.populateCourseDropdown(response);
+                } else if (response.courses) {
+                    Teacher.displayCourses(response.courses);
+                    Teacher.populateCourseDropdown(response.courses);
+                } else {
+                    console.error('Invalid response format:', response);
+                    UI.showError('Failed to load courses. Invalid response format.');
+                }
             },
             error: function(xhr) {
+                console.error('Error loading dashboard:', xhr);
                 UI.showError(xhr.responseJSON?.error || 'Failed to load dashboard');
             }
         });
     },
 
+    populateCourseDropdown: function(courses) {
+        const $courseSelect = $('#logCourseSelect');
+        $courseSelect.empty().append('<option value="">Choose a course</option>');
+        
+        courses.forEach(course => {
+            $courseSelect.append(`
+                <option value="${course._id}">
+                    ${course.display || course.name} (${course.courseId})
+                </option>
+            `);
+        });
+    },
+
+    createLog: function(courseId, content) {
+        console.log('Creating log for course:', courseId);
+        $.ajax({
+            url: `/${window.currentTenant}/teacher/courses/${courseId}/logs`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ content }),
+            success: function(response) {
+                console.log('Log created:', response);
+                UI.showSuccess('Log entry created successfully');
+                $('#addLogForm')[0].reset();
+                Teacher.loadCourseLogs(courseId);
+            },
+            error: function(xhr) {
+                console.error('Error creating log:', xhr);
+                UI.showError(xhr.responseJSON?.error || 'Failed to create log entry');
+            }
+        });
+    },
+
     displayCourses: function(courses) {
+        console.log('Displaying courses:', courses);
         const coursesList = $('#coursesList');
         coursesList.empty();
 
-        if (courses.length === 0) {
+        if (!courses || courses.length === 0) {
             coursesList.html('<p>No courses found</p>');
             return;
         }
@@ -64,7 +124,7 @@ const Teacher = {
             coursesList.append(`
                 <div class="card mb-3">
                     <div class="card-body">
-                        <h5 class="card-title">${course.display} (${course.courseId})</h5>
+                        <h5 class="card-title">${course.display || course.name} (${course.courseId})</h5>
                         <p class="card-text">${course.description}</p>
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <span class="badge bg-primary">${course.students?.length || 0} Students</span>
@@ -111,7 +171,7 @@ const Teacher = {
         // Add event handlers for the buttons
         $('.view-logs').on('click', function() {
             const courseId = $(this).data('course-id');
-            Logs.loadCourseLogs(courseId);
+            Teacher.loadCourseLogs(courseId);
         });
 
         $('.add-student').on('click', function() {
@@ -129,6 +189,54 @@ const Teacher = {
             const courseId = $(this).data('course-id');
             const taId = $(this).data('ta-id');
             Teacher.removeTAFromCourse(courseId, taId);
+        });
+    },
+
+    loadCourseLogs: function(courseId) {
+        console.log('Loading logs for course:', courseId);
+        $.ajax({
+            url: `/${window.currentTenant}/teacher/courses/${courseId}/logs`,
+            method: 'GET',
+            success: function(response) {
+                console.log('Logs response:', response);
+                const $logList = $('#logList');
+                $logList.empty();
+
+                if (!response || !Array.isArray(response)) {
+                    console.error('Invalid logs response:', response);
+                    $logList.append('<div class="alert alert-danger">Error loading logs</div>');
+                    return;
+                }
+
+                if (response.length === 0) {
+                    $logList.append('<div class="alert alert-info">No logs found for this course.</div>');
+                    return;
+                }
+
+                response.forEach(log => {
+                    $logList.append(`
+                        <div class="log-item mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <p class="card-text">${log.content}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            ${new Date(log.createdAt).toLocaleString()}
+                                        </small>
+                                        <small class="text-muted">
+                                            By: ${log.createdBy?.username || 'Unknown'}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                });
+            },
+            error: function(xhr) {
+                console.error('Error loading logs:', xhr);
+                UI.showError(xhr.responseJSON?.error || 'Failed to load logs');
+            }
         });
     },
 
