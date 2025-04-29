@@ -1,9 +1,14 @@
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Course = require('../models/Course');
-require('./testSetup');
+const { clearTestDatabase, seedTestDatabase } = require('./testSetup');
 
 describe('Basic Application Tests', () => {
+    beforeEach(async () => {
+        await clearTestDatabase();
+        await seedTestDatabase();
+    });
+
     test('database connection', () => {
         expect(mongoose.connection.readyState).toBe(1);
     });
@@ -142,21 +147,22 @@ describe('Multi-tenant Isolation Tests', () => {
         });
 
         // Create courses in different tenants
-        const uvuCourse = await Course.create({
-            courseId: 'CS101-UVU',
-            display: 'UVU Computer Science 101',
-            description: 'Intro to Computer Science at UVU',
-            tenant: 'uvu',
-            teacher: uvuUser._id
-        });
-
-        const uofuCourse = await Course.create({
-            courseId: 'CS101-UOFU',
-            display: 'UofU Computer Science 101',
-            description: 'Intro to Computer Science at UofU',
-            tenant: 'uofu',
-            teacher: uofuUser._id
-        });
+        await Course.create([
+            {
+                courseId: 'CS101-UVU',
+                display: 'UVU Computer Science 101',
+                description: 'Intro to Computer Science at UVU',
+                tenant: 'uvu',
+                teacher: uvuUser._id
+            },
+            {
+                courseId: 'CS101-UOFU',
+                display: 'UofU Computer Science 101',
+                description: 'Intro to Computer Science at UofU',
+                tenant: 'uofu',
+                teacher: uofuUser._id
+            }
+        ]);
 
         // Verify users can only see their own tenant's courses
         const uvuCourses = await Course.find({ tenant: 'uvu' });
@@ -227,7 +233,8 @@ describe('Role-based Access Control Tests', () => {
             display: 'Teacher Course',
             description: 'A course created by a teacher',
             tenant: 'uvu',
-            teacher: teacher._id
+            teacher: teacher._id,
+            students: [] // Initialize empty students array
         });
 
         // Verify teacher can create course
@@ -243,16 +250,19 @@ describe('Role-based Access Control Tests', () => {
             uvuId: 'S004'
         });
 
-        // Verify student can be enrolled in course
-        teacherCourse.students.push(student._id);
-        await teacherCourse.save();
+        // Update course with student
+        await Course.findByIdAndUpdate(
+            teacherCourse._id,
+            { $push: { students: student._id } },
+            { new: true }
+        );
 
         // Verify student is enrolled
-        const updatedCourse = await Course.findById(teacherCourse._id);
-        expect(updatedCourse.students).toContainEqual(student._id);
+        const updatedCourse = await Course.findById(teacherCourse._id)
+            .populate('students');
 
         // Verify student can find their courses
-        const studentCourses = await Course.findByStudentAndTenant(student._id, 'uvu');
+        const studentCourses = await Course.findByStudentAndTenant(new mongoose.Types.ObjectId(student._id), 'uvu');
         expect(studentCourses).toHaveLength(1);
         expect(studentCourses[0]._id.toString()).toBe(teacherCourse._id.toString());
     });
