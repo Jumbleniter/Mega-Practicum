@@ -30,7 +30,7 @@ router.post('/login', async (req, res) => {
     
     if (!user) {
       console.log('User not found for:', { username, tenant });
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Invalid username' });
     }
 
     // Verify password
@@ -39,7 +39,7 @@ router.post('/login', async (req, res) => {
     
     if (!validPassword) {
       console.log('Invalid password for user:', username);
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Invalid password' });
     }
 
     // Generate JWT token

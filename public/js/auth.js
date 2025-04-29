@@ -35,6 +35,11 @@ const Auth = {
         
         if (window.DEBUG) console.log('Attempting login for:', username);
         
+        // Clear any existing error messages
+        $('#errorMessage').hide();
+        $('#username').removeClass('is-invalid');
+        $('#password').removeClass('is-invalid');
+        
         try {
             const response = await this.login(username, password);
             if (response.success) {
@@ -59,11 +64,28 @@ const Auth = {
             }
         } catch (error) {
             console.error('Login error:', error);
+            let errorMessage = 'Login failed. Please try again.';
+            let errorField = null;
+            
+            if (error.response) {
+                const responseData = await error.response.json();
+                if (responseData.error === 'Invalid username') {
+                    errorMessage = 'Username not found. Please check your username and try again.';
+                    errorField = 'username';
+                } else if (responseData.error === 'Invalid password') {
+                    errorMessage = 'Incorrect password. Please try again.';
+                    errorField = 'password';
+                }
+            }
+            
             if (window.UI) {
-                window.UI.showError('Login failed. Please try again.');
+                window.UI.showError(errorMessage);
             } else {
-                $('#errorMessage .message').text('Login failed. Please try again.');
+                $('#errorMessage .message').text(errorMessage);
                 $('#errorMessage').show();
+                if (errorField) {
+                    $(`#${errorField}`).addClass('is-invalid');
+                }
             }
         }
     },
@@ -330,22 +352,20 @@ const Auth = {
                 body: JSON.stringify({ username, password }),
                 credentials: 'include'
             });
-            console.log('Login response status:', response.status);
-            console.log('Login response headers:', Object.fromEntries(response.headers.entries()));
+            
+            const responseData = await response.json();
             
             if (!response.ok) {
-                const errorText = await response.text();
                 console.error('Login failed:', {
                     status: response.status,
                     statusText: response.statusText,
-                    errorText
+                    error: responseData.error
                 });
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(responseData.error || 'Login failed');
             }
             
-            const data = await response.json();
-            console.log('Login successful:', data);
-            return data;
+            console.log('Login successful:', responseData);
+            return responseData;
         } catch (error) {
             console.error('Login error:', error);
             throw error;
